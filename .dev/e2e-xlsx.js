@@ -12,7 +12,8 @@ async function pickFile(page, name, buf, mime) {
 
 (async () => {
   const browser = await chromium.launch({ executablePath: 'C:/Users/zzy/AppData/Local/ms-playwright/chromium-1228/chrome-win64/chrome.exe' });
-  const page = await (await browser.newContext()).newPage();
+  // 窄视口：宽屏（≥861px）下是左右分栏，设置面板的入口位置不同
+  const page = await (await browser.newContext({ viewport: { width: 420, height: 900 } })).newPage();
   const errs = [];
   page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });

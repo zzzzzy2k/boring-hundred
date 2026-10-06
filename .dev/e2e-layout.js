@@ -55,6 +55,36 @@ const EXEC = process.env.CHROME_PATH ||
   log('切到推荐后大卡可见:', await d.locator('#sugHero').isVisible());
   await d.screenshot({ path: 'D:/tmp-w3.png' });
 
+  console.log('\n--- 各档宽度：空间利用率 ---');
+  for (const w of [1280, 1440, 1920, 2560]) {
+    await d.setViewportSize({ width: w, height: 950 });
+    await d.waitForTimeout(350);
+    const m2 = await d.evaluate(() => {
+      const app = document.querySelector('.app');
+      const panes = [...document.querySelectorAll('.pane')].map(x => Math.round(x.getBoundingClientRect().width));
+      const sug = document.querySelector('.sug-list');
+      const cs = sug ? getComputedStyle(sug) : null;
+      // 算推荐卡在第一行能放几张
+      let perRow = 0;
+      if (sug) {
+        const first = sug.querySelector('.sug-item');
+        if (first) {
+          const t = first.getBoundingClientRect().top;
+          perRow = [...sug.querySelectorAll('.sug-item')]
+            .filter(x => Math.abs(x.getBoundingClientRect().top - t) < 4).length;
+        }
+      }
+      return {
+        app宽: Math.round(app.getBoundingClientRect().width),
+        留白: window.innerWidth - Math.round(app.getBoundingClientRect().width),
+        两栏: panes.join(' : '),
+        推荐布局: cs ? cs.gridTemplateColumns : '-',
+        每行条数: perRow
+      };
+    });
+    log(`${w}px → app ${m2.app宽} / 留白 ${m2.留白} / 两栏 ${m2.两栏} / 推荐每行 ${m2.每行条数} 条`);
+  }
+
   // ============ 移动窄屏：大卡轮换 ============
   const m = await (await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })).newPage();
   m.on('pageerror', e => errs.push('[移动] ' + e.message));

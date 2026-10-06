@@ -729,7 +729,8 @@ footer .flink svg { width: 15px; height: 15px; }
    必须放在所有基础样式之后。CSS 按出现顺序生效，
    媒体查询写早了会被后面的基础样式覆盖掉。 */
 @media (min-width: 861px) {
-  .app { max-width: 1080px; }             /* 两栏并排，整体要放宽，否则每栏太窄 */
+  /* 容器随窗口放宽，但留边距 */
+  .app { max-width: 1440px; }
 
   .view-tabs { display: none; }           /* 分栏时不需要切页 */
   .sug-hero { display: none !important; } /* 大卡在窄栏里太占地方 */
@@ -737,7 +738,8 @@ footer .flink svg { width: 15px; height: 15px; }
 
   .split {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* 货架通常只有几十条，推荐有 60 条，所以推荐栏给宽一点 */
+    grid-template-columns: 5fr 7fr;
     align-items: start;
     gap: var(--s5);
   }
@@ -770,6 +772,60 @@ footer .flink svg { width: 15px; height: 15px; }
   .composer textarea { min-height: 40px; }
   .hint { display: none; }                /* 快捷键提示在分栏下是噪音 */
   .quick-tags { margin-top: var(--s2); padding-top: var(--s2); }
+
+  /* 筛选按钮别浪费横向空间：宽屏下强制排成一行 */
+  .attr-group { flex-wrap: nowrap; }
+  .attr-toggle { white-space: nowrap; }
+
+  /* 宽屏下推荐卡变宽。与其让一行只有 20 个字、右侧空 500px，
+     不如把推荐清单排成两列 —— 宽度真正用起来，一屏也能看双倍的条数。
+     注意：不用 CSS multi-column，因为那会变成「先读完左列再读右列」，
+     跟「从上往下逐条挑」的直觉不符。 */
+  .sug-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px var(--s2);
+    align-content: start;
+  }
+  .sug-item { align-items: flex-start; }
+  .sug-text { flex: 1; min-width: 0; }
+
+  /* 宽屏下限制单条内容的行宽。卡片里的文字通常只有 10~20 字，
+     拉到 600px 会变成「字稀稀拉拉占一整行」，反而难看。 */
+  .card .text, .note { max-width: 40em; }
+
+  /* 宽屏下把工具条上提到搜索框那一行的右侧。
+     工具条在 HTML 里紧跟 .sug-search，所以负margin 的基准是确定的：
+     38px（输入框高）+ 12px（下方间距）刚好顶回搜索框所在行 */
+  .sug-toolbar .btn { flex: 0 1 auto; }
+  .sug-toolbar {
+    display: flex; justify-content: flex-end;
+    margin: calc(var(--s3) - 38px - var(--s3)) 0 var(--s3) 0;
+  }
+  .sug-toolbar .btn { min-width: 104px; }
+}
+
+  /* 工具条按钮不撑满，够点就行 */
+  .sug-toolbar .btn { flex: 0 1 auto; }
+  /* 宽屏下把工具条上提到搜索框那一行的右侧。
+     工具条在 HTML 里紧跟 .sug-search，所以负margin 的基准是确定的：
+     38px（输入框高）+ 12px（下方间距）刚好顶回搜索框所在行 */
+  .sug-toolbar {
+    display: flex; justify-content: flex-end;
+    margin: calc(var(--s3) - 38px - var(--s3)) 0 var(--s3) 0;
+  }
+  .sug-toolbar .btn { min-width: 104px; }
+}
+
+/* ---- 超宽屏（≥1440px）：继续放宽，把空间用起来 ---- */
+@media (min-width: 1440px) {
+  .app { max-width: 1680px; padding-left: var(--s6); padding-right: var(--s6); }
+}
+
+/* ---- 2K 及以上（≥1920px）：锁死宽度再居中 ----
+   再宽也不增加信息量，只会让字与字之间空得更远 */
+@media (min-width: 1920px) {
+  .app { max-width: 1720px; }
 }
 
 @media (max-width: 560px) {
