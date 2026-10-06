@@ -4,8 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f7f5f0">
+<meta name="theme-color" content="#f7f5f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171512" media="(prefers-color-scheme: dark)">
 <title>小事杂货铺 · 无聊时做的小事</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="小事铺">
+<meta name="mobile-web-app-capable" content="yes">
 
 <!-- 主题预置：必须在样式渲染前执行，否则暗色用户会看到一闪而过的白屏 -->
 <script>
@@ -424,6 +432,40 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
 
 .data-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
 
+/* 清空确认弹窗 */
+.wipe-summary p {
+  font-size: 13px; color: var(--muted); line-height: 1.65;
+  background: var(--bg-sunk); padding: var(--s3);
+  border-radius: var(--r-sm); margin-bottom: var(--s4);
+}
+#wipeTitle b { color: var(--accent-deep); font-weight: 500; }
+
+.wipe-backup {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s4); margin-bottom: var(--s5);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-radius: var(--r-md);
+}
+.wipe-backup-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.wipe-backup-text b { font-size: 13.5px; font-weight: 500; color: var(--text); }
+.wipe-backup-text span { font-size: 12px; color: var(--text-2); }
+
+.wipe-danger { border-top: 1px solid var(--border); padding-top: var(--s4); transition: opacity var(--t-mid) var(--ease); }
+/* 还没勾选确认时，危险区压暗，把注意力引向上面的「先导出」 */
+.wipe-danger.idle { opacity: .55; }
+.wipe-check {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  font-size: 13px; color: var(--text-2); cursor: pointer;
+  line-height: 1.5; margin-bottom: var(--s4);
+}
+.wipe-check input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+
+.btn:disabled {
+  opacity: .45; cursor: not-allowed; filter: none;
+}
+.btn:disabled:hover { background: var(--danger); }
+
 /* ============================================================================
    8. Toast
    ============================================================================ */
@@ -459,6 +501,34 @@ footer .spacer { flex: 1; }
 footer .flink { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
 footer .flink:hover { color: var(--accent-deep); text-decoration: none; }
 footer .flink svg { width: 15px; height: 15px; }
+
+/* ============================================================================
+   9b. 备份提醒条
+   ============================================================================ */
+.backup-bar {
+  display: none;
+  align-items: center; gap: var(--s3);
+  margin-top: var(--s5); padding: var(--s3) var(--s4);
+  background: var(--card); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-md);
+  font-size: 13px; color: var(--text-2); line-height: 1.5;
+}
+.backup-bar.show { display: flex; }
+.backup-bar .bb-icon {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent-deep);
+  display: flex; align-items: center; justify-content: center;
+}
+.backup-bar .bb-text { flex: 1; min-width: 0; }
+.backup-bar .bb-text b { color: var(--text); font-weight: 500; }
+.backup-bar .btn { flex-shrink: 0; min-height: 32px; padding: 0 var(--s3); font-size: 13px; }
+@media (max-width: 560px) {
+  .backup-bar { flex-wrap: wrap; }
+  .backup-bar .bb-text { flex: 1 1 100%; order: 1; }
+  .backup-bar .bb-icon { order: 0; }
+  .backup-bar .btn { order: 2; }
+}
 
 /* ============================================================================
    10. Responsive
@@ -571,6 +641,19 @@ footer .flink svg { width: 15px; height: 15px; }
     </select>
   </div>
 
+  <!-- ============ 备份提醒 ============ -->
+  <div class="backup-bar" id="backupBar" role="status">
+    <span class="bb-icon" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 9v4"></path><path d="M12 17h.01"></path>
+        <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path>
+      </svg>
+    </span>
+    <span class="bb-text" id="backupText"></span>
+    <button class="btn accent" id="backupExportBtn">导出备份</button>
+    <button class="btn ghost" id="backupLater">知道了</button>
+  </div>
+
   <!-- ============ List ============ -->
   <ul id="list"></ul>
 
@@ -665,6 +748,15 @@ footer .flink svg { width: 15px; height: 15px; }
       <p class="tip">表格支持 <code>.csv</code>（Excel / WPS 双击即开）和 <code>.xlsx</code>。数据只存在这台浏览器里，导出一份留着更安心。</p>
     </div>
 
+    <div class="field">
+      <label>离线与安装</label>
+      <div class="data-actions">
+        <button class="btn ghost" id="installBtn" hidden>安装到桌面</button>
+        <button class="btn ghost" id="updateBtn" hidden>检查更新</button>
+      </div>
+      <p class="tip" id="pwaHint">装到桌面后可离线使用，图标和启动画面与普通 App 一样。iPhone 上需用 Safari 打开后「分享 → 添加到主屏幕」。</p>
+    </div>
+
     <div class="modal-actions">
       <button class="btn ghost" id="settingsClose">关闭</button>
       <button class="btn primary" id="settingsOk">完成</button>
@@ -682,6 +774,37 @@ footer .flink svg { width: 15px; height: 15px; }
       <button class="btn primary wide" id="importMerge">合并进现有货架</button>
       <button class="btn ghost wide" id="importReplace">清空后只留这次的</button>
       <button class="btn ghost wide" id="importCancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 清空全部数据 ============ -->
+<div class="overlay" id="wipeOverlay" role="dialog" aria-modal="true" aria-labelledby="wipeTitle">
+  <div class="modal wide">
+    <div class="eyebrow">清空数据</div>
+    <h2 id="wipeTitle">确定要清空这 <b id="wipeCount">0</b> 件小事吗？</h2>
+
+    <div class="wipe-summary">
+      <p>清空后无法恢复。建议先导出一份备份再动手——数据只存在这台浏览器里，换设备、清缓存都会丢。</p>
+    </div>
+
+    <div class="wipe-backup">
+      <div class="wipe-backup-text">
+        <b>先导出一份备份</b>
+        <span>存成 JSON 文件，之后随时能导回来</span>
+      </div>
+      <button class="btn accent" id="wipeExportBtn">立即导出</button>
+    </div>
+
+    <div class="wipe-danger" id="wipeDanger">
+      <label class="wipe-check">
+        <input type="checkbox" id="wipeAck">
+        <span>我已确认不再需要这些数据，或已经导出过备份</span>
+      </label>
+      <div class="modal-actions">
+        <button class="btn ghost" id="wipeCancel">取消</button>
+        <button class="btn danger" id="wipeOk" disabled>确认清空</button>
+      </div>
     </div>
   </div>
 </div>
@@ -798,6 +921,28 @@ footer .flink svg { width: 15px; height: 15px; }
   var items = loaded.items;
   var goal = loaded.goal;
 
+  // 上次导出备份的日期。iOS Safari 与 PWA 都会在长期不访问时清掉localStorage，
+  // 所以要用「多久没备份」来提醒用户，而不是假设数据永远在
+  var BACKUP_KEY = 'boring100.lastBackup';
+  var SNOOZE_KEY = 'boring100.backupSnooze';
+  var REMIND_DAYS = 7;          // 超过这个天数就在页面上提醒
+  var REMIND_DAYS_WARN = 14;    // 到这个天数语气要更重
+
+  function lastBackupDays() {
+    try {
+      var s = localStorage.getItem(BACKUP_KEY);
+      if (!s) return null;                 // 从没导出过
+      var a = new Date(s + 'T00:00:00');
+      var b = new Date(today() + 'T00:00:00');
+      if (isNaN(a.getTime())) return null;
+      return Math.round((b - a) / 86400000);
+    } catch (e) { return null; }
+  }
+
+  function markBackedUp() {
+    try { localStorage.setItem(BACKUP_KEY, today()); } catch (e) {}
+  }
+
   var saveTimer = null;
   function save() {
     clearTimeout(saveTimer);
@@ -878,7 +1023,7 @@ footer .flink svg { width: 15px; height: 15px; }
   /* ==================================================================
      5. 渲染
      ================================================================== */
-  function render() { renderStats(); renderFilters(); renderQuickTags(); renderList(); }
+  function render() { renderStats(); renderFilters(); renderQuickTags(); renderBackupBar(); renderList(); }
 
   function renderStats() {
     var total = items.length, done = doneCount();
@@ -1260,7 +1405,7 @@ footer .flink svg { width: 15px; height: 15px; }
   }
 
   /* ==================================================================
-     9. CSV 读写（手写解析器，支持引号包裹 / 内嵌逗号 / 内嵌换行 / BOM）
+     10. CSV 读写（手写解析器，支持引号包裹 / 内嵌逗号 / 内嵌换行 / BOM）
      ================================================================== */
   var CSV_HEAD = ['内容', '标签', '已完成', '完成日期', '备注', 'ID'];
 
@@ -1500,12 +1645,16 @@ footer .flink svg { width: 15px; height: 15px; }
   function exportCSV() {
     if (items.length === 0) { toast('还没有数据可以导出'); return; }
     download('小事杂货铺-' + today() + '.csv', itemsToCSV(), 'text/csv;charset=utf-8');
+    markBackedUp();
+    renderBackupBar();
     toast('已导出 CSV（' + items.length + ' 件），Excel 可直接打开');
   }
 
   function exportJSON() {
     var payload = JSON.stringify({ app: 'boring-hundred', version: 2, exportedAt: today(), goal: goal, items: items }, null, 2);
     download('小事杂货铺-备份-' + today() + '.json', payload, 'application/json');
+    markBackedUp();
+    renderBackupBar();
     toast('完整备份已导出');
   }
 
@@ -1589,20 +1738,100 @@ footer .flink svg { width: 15px; height: 15px; }
     }).catch(function () { toast('文件读取失败'); });
   }
 
-  function wipeAll() {
-    if (items.length === 0) { toast('本来就是空的'); return; }
-    var backup = items.slice();
-    items = [];
-    editingId = null;
-    ui.filter = 'all'; ui.tag = null; ui.search = '';
-    $('search').value = '';
-    save(); render();
-    closeModal($('settingsOverlay'));
-    toast('已清空 ' + backup.length + ' 件', function () { items = backup; save(); render(); });
+  /* ==================================================================
+     12. 备份提醒
+     ================================================================== */
+  function renderBackupBar() {
+    var bar = $('backupBar');
+    var text = $('backupText');
+    if (!bar) return;
+
+    // 在最近一次「知道了」的免打扰期内，就先别打扰
+    try {
+      var until = +localStorage.getItem(SNOOZE_KEY) || 0;
+      if (Date.now() < until) { bar.classList.remove('show'); return; }
+    } catch (e) {}
+
+    if (items.length === 0) { bar.classList.remove('show'); return; }
+
+    var d = lastBackupDays();
+
+    if (d === null) {
+      text.innerHTML = '<b>还没导出过备份。</b>' +
+        '这些小事只存在这台浏览器里，清缓存或换设备就没了，导一份留着？';
+      bar.classList.add('show');
+      return;
+    }
+    if (d < REMIND_DAYS) { bar.classList.remove('show'); return; }
+
+    text.innerHTML = d >= REMIND_DAYS_WARN
+      ? '<b>距上次备份已经 ' + d + ' 天了。</b>数据可能因为清理缓存丢失，建议现在导一份。'
+      : '距上次备份 <b>' + d + ' 天</b>了，导一份备份更安心。';
+    bar.classList.add('show');
   }
 
   /* ==================================================================
-     12. 事件绑定
+     13. 清空数据
+     ================================================================== */
+  function openWipe() {
+    if (items.length === 0) { toast('本来就是空的，没什么可清'); return; }
+    $('wipeCount').textContent = items.length;
+    $('wipeAck').checked = false;
+    $('wipeOk').disabled = true;            // 必须先勾选确认，危险按钮默认不可点
+    $('wipeDanger').classList.add('idle');
+    $('wipeExportBtn').textContent = '立即导出';
+    openModal($('wipeOverlay'), function () {
+      // 焦点放在「取消」上，防止误按回车直接清空
+      $('wipeCancel').focus();
+    });
+  }
+
+  /* keepSettings=true 表示用户只是「取消这一步」，保留设置面板；
+   清空成功或点遮罩/Esc 时收掉设置面板（数据没了，面板没意义） */
+function closeWipe(keepSettings) {
+    closeModal($('wipeOverlay'));
+    $('wipeAck').checked = false;
+    $('wipeOk').disabled = true;
+    $('wipeDanger').classList.add('idle');
+    if (!keepSettings && $('settingsOverlay').classList.contains('show')) {
+      closeModal($('settingsOverlay'));
+    }
+  }
+
+  function doWipe() {
+    if (!$('wipeAck').checked) return;       // 双保险
+    var backup = items.slice();
+    var n = backup.length;
+
+    items = [];
+    editingId = null;
+    randomId = null;
+    ui.filter = 'all'; ui.tag = null; ui.search = '';
+    $('search').value = '';
+
+    // 清掉「已备份时间」，因为数据已经没了；顺便清掉免打扰标记
+    try {
+      localStorage.removeItem(BACKUP_KEY);
+      localStorage.removeItem('boring100.backupSnooze');
+    } catch (e) {}
+
+    save();
+    render();
+    renderBackupBar();
+    closeWipe(false);      // 清空成功：设置面板一并收掉
+
+    toast('已清空 ' + n + ' 件小事', function () {   // 给一次反悔机会
+      items = backup;
+      try { localStorage.removeItem('boring100.backupSnooze'); } catch (e2) {}
+      save();
+      render();
+      renderBackupBar();
+      toast('已恢复 ' + n + ' 件');
+    });
+  }
+
+  /* ==================================================================
+     14. 事件绑定
      ================================================================== */
   var newText = $('newText');
   function autoGrow(el) {
@@ -1670,7 +1899,30 @@ footer .flink svg { width: 15px; height: 15px; }
   $('tplBtn').onclick = downloadTemplate;
   $('csvOutBtn').onclick = exportCSV;
   $('jsonOutBtn').onclick = exportJSON;
-  $('wipeBtn').onclick = wipeAll;
+  $('wipeBtn').onclick = openWipe;
+
+  // 清空确认弹窗
+  $('wipeCancel').onclick = function () { closeWipe(true); };   // 取消：保留设置面板
+  $('wipeExportBtn').onclick = function () {
+    exportJSON();                             // 顺手导一份，清空后仍可恢复
+    $('wipeExportBtn').textContent = '已导出 ✓';
+    setTimeout(function () { $('wipeExportBtn').textContent = '再导一份'; }, 1600);
+  };
+  $('wipeAck').onchange = function (e) {
+    $('wipeOk').disabled = !e.target.checked;
+    $('wipeDanger').classList.toggle('idle', !e.target.checked);
+  };
+  $('wipeOk').onclick = doWipe;
+
+  // 备份提醒条
+  $('backupExportBtn').onclick = function () {
+    exportJSON();
+    $('backupBar').classList.remove('show');
+  };
+  $('backupLater').onclick = function () {
+    $('backupBar').classList.remove('show');
+    try { localStorage.setItem(SNOOZE_KEY, String(Date.now() + 7 * 86400000)); } catch (e) {}
+  };
 
   function hiddenFile(accept, handler) {
     var inp = document.createElement('input');
@@ -1730,10 +1982,11 @@ footer .flink svg { width: 15px; height: 15px; }
 
   $('importCancel').onclick = closeImportFlow;
 
-  ['randomOverlay', 'noteOverlay', 'delOverlay', 'settingsOverlay', 'importOverlay'].forEach(function (id) {
+  ['randomOverlay', 'noteOverlay', 'delOverlay', 'settingsOverlay', 'importOverlay', 'wipeOverlay'].forEach(function (id) {
     $(id).addEventListener('click', function (e) {
       if (e.target !== this) return;
       if (id === 'noteOverlay') closeNote();
+      else if (id === 'wipeOverlay') closeWipe(false);
       else {
         if (id === 'importOverlay') pendingImport = null;
         if (id === 'delOverlay') delId = null;
@@ -1749,24 +2002,28 @@ footer .flink svg { width: 15px; height: 15px; }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
-  var OVERLAYS = ['importOverlay', 'delOverlay', 'noteOverlay', 'randomOverlay', 'settingsOverlay'];
+  // 顺序 = 视觉层级的从低到高，Esc 时从最上面那层开始关。
+  // 之前把 settingsOverlay 排在了 wipeOverlay 前面，导致叠在设置面板之上的
+  // 清空弹窗永远轮不到关闭（settings 先被关掉，循环就 break 了）。
+  var OVERLAYS = ['randomOverlay', 'noteOverlay', 'delOverlay', 'importOverlay', 'settingsOverlay', 'wipeOverlay'];
   document.addEventListener('keydown', function (e) {
     var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     var open = document.querySelector('.overlay.show');
 
     if (e.key === 'Escape') {
       if (open) {
-        for (var n = 0; n < OVERLAYS.length; n++) {
+        // 从数组末尾往前找，命中的是最上层面板
+        for (var n = OVERLAYS.length - 1; n >= 0; n--) {
           var id = OVERLAYS[n];
-          if ($(id).classList.contains('show')) {
-            if (id === 'noteOverlay') closeNote();
-            else {
-              if (id === 'importOverlay') pendingImport = null;
-              if (id === 'delOverlay') delId = null;
-              closeModal($(id));
-            }
-            break;
+          if (!$(id).classList.contains('show')) continue;
+          if (id === 'noteOverlay') closeNote();
+          else if (id === 'wipeOverlay') closeWipe(true);   // Esc 只是取消这一步，保留设置面板
+          else {
+            if (id === 'importOverlay') pendingImport = null;
+            if (id === 'delOverlay') delId = null;
+            closeModal($(id));
           }
+          break;
         }
         return;
       }
@@ -1790,7 +2047,7 @@ footer .flink svg { width: 15px; height: 15px; }
   });
 
   /* ==================================================================
-     13. 启动
+     15. 启动
      ================================================================== */
   $('ghLink').href = GH_URL;
   $('footRepo').href = REPO_URL;
@@ -1799,6 +2056,65 @@ footer .flink svg { width: 15px; height: 15px; }
   render();
   autoGrow(newText);
   if (items.length === 0) setTimeout(function () { newText.focus(); }, 200);
+
+  // 支持 ?action=random（PWA 快捷方式「随机一件」的入口）
+  try {
+    if (new URLSearchParams(location.search).get('action') === 'random') {
+      setTimeout(pickRandom, 400);
+    }
+  } catch (e) {}
+
+  /* ---------------- Service Worker（离线可用 / 可安装） ---------------- */
+  var deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    $('installBtn').hidden = false;$('pwaHint').textContent =
+      '可以装到桌面：点上面的「安装到桌面」按钮。装好后断网也能用，图标和启动画面与普通 App 一样。';
+  });
+
+  $('installBtn').onclick = function () {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function () {
+      deferredPrompt = null;
+      $('installBtn').hidden = true;
+    });
+  };
+
+  $('updateBtn').onclick = function () {
+    if (!navigator.serviceWorker) { toast('这个浏览器不支持离线缓存'); return; }
+    navigator.serviceWorker.getRegistration().then(function (reg) {
+      if (!reg) { toast('还没有缓存，先刷新一次页面'); return; }
+      reg.update().then(function () { toast('已检查更新，如有新版本刷新后生效'); });
+    });
+  };
+
+  // file:// 打开时不支持 Service Worker，静默跳过即可（本地双击依然能正常用）
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        // 有新版本就显示「检查更新」
+        reg.addEventListener('updatefound', function () {
+          var sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', function () {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+              $('updateBtn').hidden = false;
+            }
+          });
+        });
+      }).catch(function () {
+        // 静态托管环境下拿不到 sw.js，忽略即可，不影响主功能
+      });
+    });
+  }
+
+  // 注：刻意不做 beforeunload 拦截。
+  // 浏览器只在「有未保存改动」时才允许弹这个框，localStorage 是即时写入的，
+  // 所以几乎必然触发，等于每次关页面都被拦，体验很差。
+  // 数据丢失风险改由页面上的备份提醒条 + 关页面即导出这两道机制来兜。
 
 })();
 </script>

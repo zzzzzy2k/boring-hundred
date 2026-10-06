@@ -6,7 +6,7 @@ const FILE = 'file:///' + path.resolve('D:/Data/Study/Project/小事杂货铺/in
 const DL = 'D:/tmp-dl';
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: 'C:/Users/zzy/AppData/Local/ms-playwright/chromium-1228/chrome-win/chrome.exe' });
+  const browser = await chromium.launch({ executablePath: 'C:/Users/zzy/AppData/Local/ms-playwright/chromium-1228/chrome-win64/chrome.exe' });
   const ctx = await browser.newContext({ acceptDownloads: true });
   const page = await ctx.newPage();
   const errors = [];
@@ -85,9 +85,16 @@ const DL = 'D:/tmp-dl';
   console.log('\n=== 7. 清空后用模板文件重新导入（验证 xlsx 之外的真路径） ===');
   await page.locator('#settingsBtn').click();
   await page.waitForTimeout(250);
+  // 「清空全部数据」现在会先弹确认框：勾选确认 + 点确认清空
   await page.locator('#wipeBtn').click();
   await page.waitForTimeout(400);
+  log('清空确认弹窗出现:', await page.locator('#wipeOverlay.show').count() === 1);
+  await page.locator('#wipeAck').check();
+  await page.waitForTimeout(120);
+  await page.locator('#wipeOk').click();
+  await page.waitForTimeout(500);
   log('清空后条数:', await page.locator('.card').count());
+  log('清空后设置面板已一并关闭:', await page.locator('#settingsOverlay.show').count() === 0);
 
   const [imp] = await Promise.all([
     page.waitForEvent('filechooser'),

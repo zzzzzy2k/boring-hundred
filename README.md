@@ -72,7 +72,53 @@
 
 数据只存在**这台电脑的这个浏览器**里。清浏览器数据 / 换浏览器 / 无痕模式关窗口 = 货架清空。
 
-建议每隔一段时间点一次「导出完整备份」。文件名自动带日期。
+**页面会在该提醒的时候提醒你**：
+
+| 情况 | 提示 |
+|---|---|
+| 从没导出过 | 「还没导出过备份」+ 一键导出按钮 |
+| 超过 7 天没导出 | 「距上次备份 N 天了」 |
+| 超过 14 天没导出 | 「距上次备份已经 N 天了」（语气加重） |
+| 点「知道了」 | 7 天内不再打扰 |
+
+只要点了任意一个「导出」按钮，计时自动归零——**导出 CSV 也算**。
+
+iPhone 上尤其要注意：Safari 以及添加到桌面的 PWA，都会在长期不访问时清掉本地数据。
+攒到一定数量时，那条提醒就是在救你。
+
+### 想彻底重来
+
+设置面板 → **清空全部数据**。这是个破坏性操作，所以流程做得比较谨慎：
+
+1. 弹窗先告诉你有多少件要清
+2. 上面直接给一个**「立即导出」**按钮（点了就下载，不用先去设置面板）
+3. 必须**勾选确认**才能点亮「确认清空」按钮（默认禁用，焦点还落在「取消」上）
+4. 清空后 **5 秒内可以撤销**
+
+清空时会顺带清掉「已备份时间」的记录——数据都没了，备份时间也就没有意义了。
+
+---
+
+## 装到桌面（PWA）
+
+页面已经配好了 PWA，**不需要打包成 App**，也没有任何合规成本：
+
+- **安卓 / 桌面 Chrome**：打开网址 → 菜单里「安装应用」或点设置里的「安装到桌面」按钮
+- **iPhone Safari**：打开网址 → 分享 → 「添加到主屏幕」
+
+装好之后：有独立图标、有启动画面、断网可用、全屏无地址栏，体验跟普通 App 几乎一样。
+manifest 里还配了一个**长按图标的快捷方式「随机一件」**，点了直接抽一件事。
+
+**本地双击 `index.html` 时不会注册离线缓存**（浏览器限制），但所有功能都正常可用——
+只是没装成 App、断网打不开而已。想要完整能力，推到 GitHub Pages 就行。
+
+### 图标是用什么画的
+
+`tools/make-icons.py` —— **纯标准库手写 PNG 编码器**（zlib + struct），不依赖 PIL。
+改配色或形状直接改那个脚本里的常量重跑即可。
+
+图案是「一只半开的抽屉」：米色底 + 浅色抽屉面 + 陶土橙抽屉身 + 两个圆把手。
+普通图标带圆角，`*-maskable-*` 版本留足了安全区（系统裁成圆形也不切到内容）。
 
 ---
 
@@ -106,27 +152,44 @@
 
 ```
 小事杂货铺/
-├── index.html           ← 全部代码都在这一个文件里（HTML + CSS + JS）
+├── index.html          ← 全部代码都在这一个文件里（HTML + CSS + JS）
+├── manifest.webmanifest← PWA 配置：应用名、图标、启动方式
+├── sw.js← PWA 离线缓存
+├── icon-*.png / apple-touch-icon.png / favicon-32.png
+├── tools/
+│   └── make-icons.py   ← 图标生成脚本（纯标准库，改配色后重跑即可）
 ├── README.md
 ├── .gitignore
 ├── _原始版本-test.html← 最初的手写原型，仅作对照，可删
-└── .dev/← 开发期的浏览器自动化测试脚本，可删
+└── .dev/                ← 开发期的浏览器自动化测试脚本，可删
     ├── e2e.js            主流程（增删改查 / 导入导出 / 快捷键 / 持久化）
-    └── e2e-xlsx.js       xlsx 导入 + 异常文件容错
+    ├── e2e-xlsx.js       xlsx 导入 + 异常文件容错
+    └── e2e-pwa.js        备份提醒 / 清空流程 / PWA 基建
+```
+
+### 跑测试
+
+需要 `playwright-core` 和本机已有的 chromium：
+
+```bash
+npm install playwright-core
+cd .dev && node e2e.js && node e2e-xlsx.js && node e2e-pwa.js
 ```
 
 ### 代码长了怎么办
 
-`index.html` 目前约 **1790 行**。
-**超过 2200 行时就该拆了**，拆分方案按这个顺序：
+`index.html` 目前约 **2130 行**。
+**超过 2600 行时就该拆了**（比之前放宽，因为 PWA 和备份逻辑又加了不少），
+拆分方案按这个顺序：
 
 1. `index.html` —— 只留 HTML 骨架，删掉 `<style>` 和 `<script>`
 2. `app.css` —— 把 `<style>` 里的内容原样搬过去
 3. `app.js` —— 把 `<script>` 里的内容原样搬过去
 4. 用 `<link rel="stylesheet" href="app.css">` 和 `<script src="app.js"></script>` 引回来
 
-CSS 已经用注释分好 11 个区块（Design Tokens / Reset / Header / Composer / Toolbar /
-List / Modal / Toast / Footer / Responsive / A11y），按区块整段搬就行，不用重新梳理。
+CSS 已用注释分好 11 个区块（Design Tokens / Reset / Header / Composer / Toolbar /
+List / Modal / Toast / Footer / Responsive / A11y），JS 按 15 个功能分区编号，
+按区块整段搬就行，不用重新梳理。
 
 **拆完双击依然能开**，不需要起本地服务器。
 
@@ -137,8 +200,11 @@ List / Modal / Toast / Footer / Responsive / A11y），按区块整段搬就行�
 | 想改 | 去哪儿 |
 |---|---|
 | 配色 | `index.html` 顶部 `:root` 里的 CSS 变量，暗色在 `html.dark` 那一组 |
+| **图标** | 改 `tools/make-icons.py` 里的配色常量或 `build()` 的坐标，然后重跑该脚本 |
 | 默认目标数量 | JS 里的 `var DEFAULT_GOAL = 100;` |
+| 备份提醒的频率 | JS 里的 `REMIND_DAYS`（7 天）和 `REMIND_DAYS_WARN`（14 天） |
 | 表格的列 | JS 里的 `CSV_HEAD` 和 `mapHeader()` |
+| Service Worker 缓存清单 | `sw.js` 顶部的 `ASSETS` 数组 |
 
 **改配色时注意**：反白元素（选中态 chip、实心按钮、勾选圈）不要直接用 `--accent` 配白字——
 那个组合只有 2.95:1 对比度，不达 WCAG AA。代码里已经另开了一组 `--solid` / `--solid-fg` 专门干这事。
@@ -160,9 +226,13 @@ git push -u origin main
 
 ## 技术说明
 
-- 零依赖、零构建、零后端。双击 HTML 就跑，断网也能用。
+- 零依赖、零构建、零后端。双击 HTML 就跑，断网也能用（**推到 GitHub Pages 之后**断网也能用，
+  本地 `file://` 打开时浏览器不允许 Service Worker，缓存功能会自动跳过）。
 - **xlsx 直读是用浏览器原生 `DecompressionStream` 解 zip 实现的**，没引任何第三方库。
   老浏览器不支持时会提示「请另存为 CSV 再导入」，CSV 永远可用。
+- **图标也是零依赖生成的**：`tools/make-icons.py` 手写 PNG 编码（zlib + struct），
+  4x4 超采样做抗锯齿。
 - 移动端做了响应式：窄屏下搜索框独占一行；手机上操作按钮常驻显示（没有 hover）。
 - 无障碍：勾选圈视觉 22px 但热区撑到 44px；所有按钮有 `aria-label`；
   焦点有可见描边；尊重系统「减弱动态效果」设置；关键配色对比度按 WCAG AA 校过。
+- 破坏性操作（清空、覆盖导入）一律要求二次确认，且**清空后 5 秒内可撤销**。
