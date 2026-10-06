@@ -18,3 +18,8 @@ build/
 *.log
 *.tmp
 .DS_Store
+# Git Bash / cmd 下执行 .bat 里的 `chcp 65001 >nul` 会真的生成一个名为 nul 的空文件。
+# 这个名字是 Windows 保留设备名，shell 层面删不掉（rm / del / Remove-Item 都失败），
+# 所以只能靠 .gitignore 排除。根因已修：推送.bat 里不再有 chcp 行——
+# 编码在 tools/push.py 内部用 sys.stdout.reconfigure 处理，不需要改代码页。
+/nul
