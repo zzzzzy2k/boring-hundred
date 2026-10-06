@@ -298,21 +298,55 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
 .toolbar.stuck { border-bottom-color: var(--border); }
 .toolbar-row { display: flex; gap: var(--s2); align-items: center; }
 
-.search-wrap { position: relative; flex: 1; min-width: 0; }
-.search-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
-#search {
-  width: 100%; height: 38px; padding: 0 var(--s3) 0 34px;
+.search-wrap { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; }
+.search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; transition: color var(--t-fast) var(--ease); }
+/* 两个搜索框（货架 / 推荐清单）共用一套样式。
+   之前只有 #search 有规则，#sugSearch 完全没有——渲染成浏览器默认的白底方角框。 */
+.search-input {
+  width: 100%; height: 40px; padding: 0 38px 0 36px;
   border-radius: var(--r-full); border: 1px solid var(--border);
-  background: var(--card); font-size: 14px; outline: none;
-  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  background: var(--bg-sunk); color: var(--text);
+  font-size: 14px; outline: none;
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+  -webkit-appearance: none; appearance: none;
 }
-#search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-#search::placeholder { color: var(--faint); }
+.search-input:hover { border-color: var(--border-2); }
+.search-input:focus {
+  border-color: var(--accent); background: var(--card);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.search-wrap:focus-within svg { color: var(--accent); }
+.search-input::placeholder { color: var(--faint); }
+/* 清除按钮：只有有内容时才出现，替代浏览器自带的 ✕（那个在部分浏览器里不显示）。
+   用 visibility 而不是纯 opacity——这样它对读屏软件和自动化也是真正「消失」。 */
+.search-clear {
+  position: absolute; right: 6px;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--faint); background: transparent; border: none;
+  cursor: pointer;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity var(--t-fast) var(--ease), visibility var(--t-fast), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.search-wrap.has-value .search-clear { opacity: 1; visibility: visible; pointer-events: auto; }
+.search-clear:hover { background: var(--border); color: var(--text); }
+/* 命中数量：跟着搜索框走，比放在列表底部更即时。
+   宽屏下工具条会负margin 上提到同一行，所以给它垫个底色和左边距，避免跟按钮糊在一起 */
+.search-hits {
+  flex-shrink: 0; padding: 0 11px; height: 40px;
+  display: flex; align-items: center;
+  font-size: 12px; color: var(--text-2);
+  background: var(--bg-sunk); border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.search-hits:empty { display: none; }
 
 .btn {
   min-height: 38px; padding: 0 var(--s4); border-radius: var(--r-full);
   font-size: 14px; background: var(--bg-sunk); color: var(--text-2);
   border: 1px solid transparent;
+  display: inline-flex; align-items: center; justify-content: center;
   transition: all var(--t-fast) var(--ease); white-space: nowrap;
 }
 .btn:hover { background: color-mix(in srgb, var(--bg-sunk) 70%, var(--border)); }
@@ -378,11 +412,13 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
 .sug-bulk { display: flex; gap: var(--s2); margin-top: var(--s3); flex-wrap: wrap; }
 .sug-bulk .btn { flex: 1; min-width: 118px; }
 
-/* 分栏时的一行小工具条（默认隐藏，宽屏才显示） */
-.sug-toolbar { display: none; gap: var(--s2); margin-bottom: var(--s3); }
+/* 分栏时的一行小工具条（默认隐藏，宽屏才显示）。
+   现在是 .sug-search 的子元素，宽屏时占 grid 第三列 */
+.sug-toolbar { display: none; gap: var(--s2); }
 .sug-toolbar .btn { flex: 1; min-width: 0; font-size: 13px; }
 
-.sug-search { margin-bottom: var(--s3); }
+/* 搜索行：输入框 + 命中数并排 */
+.sug-search { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }
 .sug-filters { margin-bottom: var(--s3); }
 
 /* ---------- 大卡轮换（仅窄屏） ---------- */
@@ -393,17 +429,41 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
   margin-bottom: var(--s3); box-shadow: var(--sh-2);
   position: relative; overflow: hidden;
 }
-.sug-hero::after {                /* 右下角一块淡色圆，纯装饰 */
-  content: ''; position: absolute; right: -26px; bottom: -26px;
-  width: 100px; height: 100px; border-radius: 50%;
-  background: var(--accent-soft); opacity: .55; pointer-events: none;
+/* 左侧一道橙色竖条：跟紧凑卡的色条呼应，让大卡和列表视觉同源。
+   z-index 要高于 ::after 那个装饰圆，否则橙条中段会被盖掉发白。 */
+.sug-hero::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 4px; background: var(--accent); z-index: 2;
+}
+.sug-hero::after {                /* 右下角一块淡色圆，纯装饰。压得很淡，别抢内容的戏 */
+  content: ''; position: absolute; right: -34px; bottom: -34px;
+  width: 104px; height: 104px; border-radius: 50%;
+  background: var(--accent-soft); opacity: .4; pointer-events: none;
 }
 .sug-hero > * { position: relative; z-index: 1; }
-.hero-idx { font-size: 10.5px; color: var(--faint); letter-spacing: .04em; margin-bottom: var(--s2); }
-.hero-text { font-size: 17.5px; line-height: 1.45; font-weight: 500; margin-bottom: var(--s3); }
+/* 序号做成小徽章，比一行灰字更利落 */
+.hero-idx {
+  display: inline-block;
+  font-size: 11px; color: var(--accent-deep); background: var(--accent-soft);
+  padding: 2px 9px; border-radius: var(--r-full);
+  letter-spacing: .02em; margin-bottom: var(--s3);
+  font-variant-numeric: tabular-nums;
+}
+.hero-text {
+  font-size: 19px; line-height: 1.45; font-weight: 600;
+  letter-spacing: -.01em; margin-bottom: var(--s3);
+  text-wrap: pretty;
+}
 .hero-meta { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+/* 主按钮占满宽度，「换一条」收成次要——大卡只有一个主动作 */
 .hero-acts { display: flex; gap: var(--s2); margin-top: var(--s4); }
-.hero-acts .btn { flex: 1; min-width: 0; }
+.hero-acts .btn { min-height: 42px; }
+.hero-acts #sugHeroAdd { flex: 1 1 auto; }
+.hero-acts #sugHeroSkip {
+  flex: 0 0 auto; padding: 0 var(--s4);
+  background: transparent; border-color: var(--border); color: var(--text-2);
+}
+.hero-acts #sugHeroSkip svg { display: block; margin-right: 5px; }
 
 /* ---------- 紧凑卡 ---------- */
 .sug-list { display: flex; flex-direction: column; gap: 6px; }
@@ -820,27 +880,20 @@ footer .flink svg { width: 15px; height: 15px; }
      拉到 600px 会变成「字稀稀拉拉占一整行」，反而难看。 */
   .card .text, .note { max-width: 40em; }
 
-  /* 宽屏下把工具条上提到搜索框那一行的右侧。
-     工具条在 HTML 里紧跟 .sug-search，所以负margin 的基准是确定的：
-     38px（输入框高）+ 12px（下方间距）刚好顶回搜索框所在行 */
-  .sug-toolbar .btn { flex: 0 1 auto; }
+  /* 宽屏下把「搜索框 + 命中数 + 工具条」排成一行三列。
+     原来用负 margin 把工具条上提，位置基准很脆——
+     一旦搜索框右边多了个命中数，两者就会重叠（实测确实撞了）。
+     改成 grid 各占一列，位置由布局保证，不靠算。 */
+  .sug-search {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center; gap: var(--s2);
+  }
   .sug-toolbar {
     display: flex; justify-content: flex-end;
-    margin: calc(var(--s3) - 38px - var(--s3)) 0 var(--s3) 0;
+    margin: 0;
   }
-  .sug-toolbar .btn { min-width: 104px; }
-}
-
-  /* 工具条按钮不撑满，够点就行 */
-  .sug-toolbar .btn { flex: 0 1 auto; }
-  /* 宽屏下把工具条上提到搜索框那一行的右侧。
-     工具条在 HTML 里紧跟 .sug-search，所以负margin 的基准是确定的：
-     38px（输入框高）+ 12px（下方间距）刚好顶回搜索框所在行 */
-  .sug-toolbar {
-    display: flex; justify-content: flex-end;
-    margin: calc(var(--s3) - 38px - var(--s3)) 0 var(--s3) 0;
-  }
-  .sug-toolbar .btn { min-width: 104px; }
+  .sug-toolbar .btn { flex: 0 1 auto; min-width: 104px; }
 }
 
 /* ---- 超宽屏（≥1440px）：继续放宽，把空间用起来 ---- */
@@ -956,7 +1009,12 @@ footer .flink svg { width: 15px; height: 15px; }
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
           <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>
         </svg>
-        <input type="text" id="search" placeholder="搜一件事…" aria-label="搜索">
+        <input type="text" id="search" class="search-input" placeholder="搜一件事…" aria-label="搜索">
+        <button class="search-clear" type="button" aria-label="清空搜索" tabindex="-1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18"></path>
+          </svg>
+        </button>
       </div>
       <button class="btn primary" id="randomBtn" title="随机来一件 (R)">🎲 随便来一件</button>
       <button class="icon-btn" id="attrBtn" title="按属性筛选" aria-label="按属性筛选" aria-pressed="false">
@@ -1021,24 +1079,36 @@ footer .flink svg { width: 15px; height: 15px; }
       <div class="hero-meta" id="sugHeroMeta"></div>
       <div class="hero-acts">
         <button class="btn primary" id="sugHeroAdd">＋ 加进货架</button>
-        <button class="btn ghost" id="sugHeroSkip">🎲 换一条</button>
+        <button class="btn" id="sugHeroSkip">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="4"></rect>
+            <path d="M8 8h8M8 12h5M8 16h3"></path>
+          </svg>
+          换一条
+        </button>
       </div>
     </div>
 
+    <!-- 搜索行。宽屏时这三块（搜索框 / 命中数 / 工具条）排成 grid 同一行，
+         窄屏时工具条隐藏（按钮并入上面的介绍卡），剩下两块仍是 flex 一行 -->
     <div class="sug-search">
-      <div class="search-wrap">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+      <div class="search-wrap" id="sugSearchWrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
           <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>
         </svg>
-        <input type="text" id="sugSearch" placeholder="搜推荐…" aria-label="搜索推荐清单">
+        <input type="text" id="sugSearch" class="search-input" placeholder="搜推荐，比如「整理」" aria-label="搜索推荐清单">
+        <button class="search-clear" type="button" aria-label="清空搜索" tabindex="-1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18"></path>
+          </svg>
+        </button>
       </div>
-    </div>
+      <span class="search-hits" id="sugHits" aria-live="polite"></span>
 
-    <!-- 分栏时用的一行小工具条。宽屏下移到搜索框右侧同一行（CSS 里改 margin 负值对齐），
-         窄屏下并入上面的介绍卡，不单独占行 -->
-    <div class="sug-toolbar" id="sugToolbar">
-      <button class="btn accent" id="sugShuffleWide">🎲 换一批</button>
-      <button class="btn ghost" id="sugAddAllWide">全部加进来</button>
+      <div class="sug-toolbar" id="sugToolbar">
+        <button class="btn accent" id="sugShuffleWide">🎲 换一批</button>
+        <button class="btn ghost" id="sugAddAllWide">全部加进来</button>
+      </div>
     </div>
 
     <div class="sug-filters" id="sugFilters"></div>
@@ -2559,7 +2629,10 @@ var SUGGESTIONS = [
   function visibleSuggestions() {
     var q = ui.sugSearch.trim().toLowerCase();
     return SUGGESTIONS.filter(function (s) {
-      if (q && (s.text + ' ' + s.tags.join(' ')).toLowerCase().indexOf(q) === -1) return false;
+      // 搜索范围包含属性值。界面上「不看屏幕」「用电脑」都是可见的筛选维度，
+      // 用户搜「屏幕」却一条都搜不到会以为坏了。
+      var hay = (s.text + ' ' + (s.tags || []).join(' ') + ' ' + attrText(s.attrs)).toLowerCase();
+      if (q && hay.indexOf(q) === -1) return false;
       for (var k in ui.attrs) {
         if (!Object.prototype.hasOwnProperty.call(ui.attrs, k)) continue;
         if (!ui.attrs[k]) continue;
@@ -2567,6 +2640,16 @@ var SUGGESTIONS = [
       }
       return true;
     });
+  }
+
+  /** 把 {place:'在家', screen:'不看屏幕'} 拍平成 '在家 不看屏幕'，供搜索匹配 */
+  function attrText(attrs) {
+    if (!attrs) return '';
+    var out = [];
+    for (var k in attrs) {
+      if (Object.prototype.hasOwnProperty.call(attrs, k) && attrs[k]) out.push(attrs[k]);
+    }
+    return out.join(' ');
   }
 
   function renderSugFilters() {
@@ -2640,6 +2723,8 @@ var SUGGESTIONS = [
         '<p class="small">换个条件，或者直接在自己的货架里写一条。</p>';
       list.appendChild(li);
       if (foot) foot.textContent = '';
+      var hits0 = $('sugHits');
+      if (hits0) hits0.textContent = '0 / ' + SUGGESTIONS.length;
       return;
     }
 
@@ -2692,9 +2777,16 @@ var SUGGESTIONS = [
     });
     list.appendChild(frag);
 
+    var left = SUGGESTIONS.filter(function (s) { return !inShelf(s.text); }).length;
     if (foot) {
-      var left = SUGGESTIONS.filter(function (s) { return !inShelf(s.text); }).length;
       foot.textContent = '共 ' + SUGGESTIONS.length + ' 条推荐，还有 ' + left + ' 条没加过';
+    }
+
+    // 搜索框右侧的命中数。只在搜索/筛选生效时显示，否则那只是常驻噪音
+    var hits = $('sugHits');
+    if (hits) {
+      var filtering = !!ui.sugSearch.trim() || ATTR_GROUPS.some(function (g) { return ui.attrs[g.key]; });
+      hits.textContent = filtering ? (shown.length + ' / ' + SUGGESTIONS.length) : '';
     }
   }
 
@@ -2714,15 +2806,17 @@ var SUGGESTIONS = [
     var s = SUGGESTIONS[heroIdx];
     var left = SUGGESTIONS.filter(function (x) { return !inShelf(x.text); }).length;
 
-    $('sugHeroIdx').textContent = '第 ' + (heroIdx + 1) + ' / ' + SUGGESTIONS.length
-      + ' 条 · 还剩 ' + left + ' 条没加过';
+    // 徽章只留最有用的一层信息：还剩多少。加过的条数放在页脚就够了
+    $('sugHeroIdx').textContent = left > 0
+      ? (heroIdx + 1) + ' / ' + SUGGESTIONS.length + ' · 还剩 ' + left + ' 条'
+      : '都加过了';
     $('sugHeroText').textContent = s.text;
     $('sugHeroMeta').innerHTML = '';
     $('sugHeroMeta').appendChild(attrDotsEl(s.attrs));
 
     var btn = $('sugHeroAdd');
     var isIn = inShelf(s.text);
-    btn.textContent = isIn ? '✓ 已加入' : '＋ 加进货架';
+    btn.textContent = isIn ? '✓ 已在货架' : '＋ 加进货架';
     btn.disabled = isIn;
   }
 
@@ -2863,6 +2957,7 @@ function closeWipe(keepSettings) {
     randomId = null;
     ui.filter = 'all'; ui.tag = null; ui.search = '';
     $('search').value = '';
+    syncSearchAffordance($('search').parentNode, $('search'));
 
     // 清掉「已备份时间」，因为数据已经没了；顺便清掉免打扰标记
     try {
@@ -2906,8 +3001,10 @@ function closeWipe(keepSettings) {
   $('search').addEventListener('input', function (e) {
     clearTimeout(searchTimer);
     var v = e.target.value;
+    syncSearchAffordance($('search').parentNode, $('search'));
     searchTimer = setTimeout(function () { ui.search = v; renderList(); }, 140);
   });
+  bindSearchClear($('search').parentNode, $('search'), function (v) { ui.search = v; renderList(); });
 
   $('randomBtn').onclick = pickRandom;
   $('randomAgain').onclick = pickRandom;
@@ -2977,8 +3074,40 @@ function closeWipe(keepSettings) {
   $('sugSearch').addEventListener('input', function (e) {
     clearTimeout(sugTimer);
     var v = e.target.value;
+    syncSearchAffordance($('sugSearchWrap'), $('sugSearch'));
     sugTimer = setTimeout(function () { ui.sugSearch = v; renderSugList(); }, 140);
   });
+  bindSearchClear($('sugSearchWrap'), $('sugSearch'), function (v) { ui.sugSearch = v; renderSugList(); });
+
+  /* 搜索框的「有内容就显示 ✕」状态。
+     两个搜索框共用这套，_set 直接写 DOM 不触发 input 事件，避免回环。 */
+  function syncSearchAffordance(wrap, input) {
+    if (!wrap || !input) return;
+    wrap.classList.toggle('has-value', !!input.value);
+  }
+  function bindSearchClear(wrap, input, onChange) {
+    if (!wrap || !input) return;
+    var btn = wrap.querySelector('.search-clear');
+    if (!btn) return;
+    btn.onclick = function () {
+      input.value = '';
+      syncSearchAffordance(wrap, input);
+      onChange('');
+      input.focus();
+    };
+    // Esc 清空（输入框里按 Esc 是最自然的）
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && input.value) {
+        e.stopPropagation();
+        input.value = '';
+        syncSearchAffordance(wrap, input);
+        onChange('');
+      }
+    });
+    input.addEventListener('search', function () {
+      syncSearchAffordance(wrap, input);
+    });
+  }
 
   $('tplBtn').onclick = downloadTemplate;
   $('csvOutBtn').onclick = exportCSV;

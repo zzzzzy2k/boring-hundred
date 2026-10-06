@@ -272,21 +272,55 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
 .toolbar.stuck { border-bottom-color: var(--border); }
 .toolbar-row { display: flex; gap: var(--s2); align-items: center; }
 
-.search-wrap { position: relative; flex: 1; min-width: 0; }
-.search-wrap svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
-#search {
-  width: 100%; height: 38px; padding: 0 var(--s3) 0 34px;
+.search-wrap { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; }
+.search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; transition: color var(--t-fast) var(--ease); }
+/* 两个搜索框（货架 / 推荐清单）共用一套样式。
+   之前只有 #search 有规则，#sugSearch 完全没有——渲染成浏览器默认的白底方角框。 */
+.search-input {
+  width: 100%; height: 40px; padding: 0 38px 0 36px;
   border-radius: var(--r-full); border: 1px solid var(--border);
-  background: var(--card); font-size: 14px; outline: none;
-  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  background: var(--bg-sunk); color: var(--text);
+  font-size: 14px; outline: none;
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+  -webkit-appearance: none; appearance: none;
 }
-#search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-#search::placeholder { color: var(--faint); }
+.search-input:hover { border-color: var(--border-2); }
+.search-input:focus {
+  border-color: var(--accent); background: var(--card);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.search-wrap:focus-within svg { color: var(--accent); }
+.search-input::placeholder { color: var(--faint); }
+/* 清除按钮：只有有内容时才出现，替代浏览器自带的 ✕（那个在部分浏览器里不显示）。
+   用 visibility 而不是纯 opacity——这样它对读屏软件和自动化也是真正「消失」。 */
+.search-clear {
+  position: absolute; right: 6px;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--faint); background: transparent; border: none;
+  cursor: pointer;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity var(--t-fast) var(--ease), visibility var(--t-fast), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.search-wrap.has-value .search-clear { opacity: 1; visibility: visible; pointer-events: auto; }
+.search-clear:hover { background: var(--border); color: var(--text); }
+/* 命中数量：跟着搜索框走，比放在列表底部更即时。
+   宽屏下工具条会负margin 上提到同一行，所以给它垫个底色和左边距，避免跟按钮糊在一起 */
+.search-hits {
+  flex-shrink: 0; padding: 0 11px; height: 40px;
+  display: flex; align-items: center;
+  font-size: 12px; color: var(--text-2);
+  background: var(--bg-sunk); border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.search-hits:empty { display: none; }
 
 .btn {
   min-height: 38px; padding: 0 var(--s4); border-radius: var(--r-full);
   font-size: 14px; background: var(--bg-sunk); color: var(--text-2);
   border: 1px solid transparent;
+  display: inline-flex; align-items: center; justify-content: center;
   transition: all var(--t-fast) var(--ease); white-space: nowrap;
 }
 .btn:hover { background: color-mix(in srgb, var(--bg-sunk) 70%, var(--border)); }
@@ -352,11 +386,13 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
 .sug-bulk { display: flex; gap: var(--s2); margin-top: var(--s3); flex-wrap: wrap; }
 .sug-bulk .btn { flex: 1; min-width: 118px; }
 
-/* 分栏时的一行小工具条（默认隐藏，宽屏才显示） */
-.sug-toolbar { display: none; gap: var(--s2); margin-bottom: var(--s3); }
+/* 分栏时的一行小工具条（默认隐藏，宽屏才显示）。
+   现在是 .sug-search 的子元素，宽屏时占 grid 第三列 */
+.sug-toolbar { display: none; gap: var(--s2); }
 .sug-toolbar .btn { flex: 1; min-width: 0; font-size: 13px; }
 
-.sug-search { margin-bottom: var(--s3); }
+/* 搜索行：输入框 + 命中数并排 */
+.sug-search { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s3); }
 .sug-filters { margin-bottom: var(--s3); }
 
 /* ---------- 大卡轮换（仅窄屏） ---------- */
@@ -367,17 +403,41 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
   margin-bottom: var(--s3); box-shadow: var(--sh-2);
   position: relative; overflow: hidden;
 }
-.sug-hero::after {                /* 右下角一块淡色圆，纯装饰 */
-  content: ''; position: absolute; right: -26px; bottom: -26px;
-  width: 100px; height: 100px; border-radius: 50%;
-  background: var(--accent-soft); opacity: .55; pointer-events: none;
+/* 左侧一道橙色竖条：跟紧凑卡的色条呼应，让大卡和列表视觉同源。
+   z-index 要高于 ::after 那个装饰圆，否则橙条中段会被盖掉发白。 */
+.sug-hero::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 4px; background: var(--accent); z-index: 2;
+}
+.sug-hero::after {                /* 右下角一块淡色圆，纯装饰。压得很淡，别抢内容的戏 */
+  content: ''; position: absolute; right: -34px; bottom: -34px;
+  width: 104px; height: 104px; border-radius: 50%;
+  background: var(--accent-soft); opacity: .4; pointer-events: none;
 }
 .sug-hero > * { position: relative; z-index: 1; }
-.hero-idx { font-size: 10.5px; color: var(--faint); letter-spacing: .04em; margin-bottom: var(--s2); }
-.hero-text { font-size: 17.5px; line-height: 1.45; font-weight: 500; margin-bottom: var(--s3); }
+/* 序号做成小徽章，比一行灰字更利落 */
+.hero-idx {
+  display: inline-block;
+  font-size: 11px; color: var(--accent-deep); background: var(--accent-soft);
+  padding: 2px 9px; border-radius: var(--r-full);
+  letter-spacing: .02em; margin-bottom: var(--s3);
+  font-variant-numeric: tabular-nums;
+}
+.hero-text {
+  font-size: 19px; line-height: 1.45; font-weight: 600;
+  letter-spacing: -.01em; margin-bottom: var(--s3);
+  text-wrap: pretty;
+}
 .hero-meta { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+/* 主按钮占满宽度，「换一条」收成次要——大卡只有一个主动作 */
 .hero-acts { display: flex; gap: var(--s2); margin-top: var(--s4); }
-.hero-acts .btn { flex: 1; min-width: 0; }
+.hero-acts .btn { min-height: 42px; }
+.hero-acts #sugHeroAdd { flex: 1 1 auto; }
+.hero-acts #sugHeroSkip {
+  flex: 0 0 auto; padding: 0 var(--s4);
+  background: transparent; border-color: var(--border); color: var(--text-2);
+}
+.hero-acts #sugHeroSkip svg { display: block; margin-right: 5px; }
 
 /* ---------- 紧凑卡 ---------- */
 .sug-list { display: flex; flex-direction: column; gap: 6px; }
@@ -794,27 +854,20 @@ footer .flink svg { width: 15px; height: 15px; }
      拉到 600px 会变成「字稀稀拉拉占一整行」，反而难看。 */
   .card .text, .note { max-width: 40em; }
 
-  /* 宽屏下把工具条上提到搜索框那一行的右侧。
-     工具条在 HTML 里紧跟 .sug-search，所以负margin 的基准是确定的：
-     38px（输入框高）+ 12px（下方间距）刚好顶回搜索框所在行 */
-  .sug-toolbar .btn { flex: 0 1 auto; }
+  /* 宽屏下把「搜索框 + 命中数 + 工具条」排成一行三列。
+     原来用负 margin 把工具条上提，位置基准很脆——
+     一旦搜索框右边多了个命中数，两者就会重叠（实测确实撞了）。
+     改成 grid 各占一列，位置由布局保证，不靠算。 */
+  .sug-search {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center; gap: var(--s2);
+  }
   .sug-toolbar {
     display: flex; justify-content: flex-end;
-    margin: calc(var(--s3) - 38px - var(--s3)) 0 var(--s3) 0;
+    margin: 0;
   }
-  .sug-toolbar .btn { min-width: 104px; }
-}
-
-  /* 工具条按钮不撑满，够点就行 */
-  .sug-toolbar .btn { flex: 0 1 auto; }
-  /* 宽屏下把工具条上提到搜索框那一行的右侧。
-     工具条在 HTML 里紧跟 .sug-search，所以负margin 的基准是确定的：
-     38px（输入框高）+ 12px（下方间距）刚好顶回搜索框所在行 */
-  .sug-toolbar {
-    display: flex; justify-content: flex-end;
-    margin: calc(var(--s3) - 38px - var(--s3)) 0 var(--s3) 0;
-  }
-  .sug-toolbar .btn { min-width: 104px; }
+  .sug-toolbar .btn { flex: 0 1 auto; min-width: 104px; }
 }
 
 /* ---- 超宽屏（≥1440px）：继续放宽，把空间用起来 ---- */

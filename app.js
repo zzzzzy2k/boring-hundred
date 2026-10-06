@@ -1353,7 +1353,10 @@ var SUGGESTIONS = [
   function visibleSuggestions() {
     var q = ui.sugSearch.trim().toLowerCase();
     return SUGGESTIONS.filter(function (s) {
-      if (q && (s.text + ' ' + s.tags.join(' ')).toLowerCase().indexOf(q) === -1) return false;
+      // 搜索范围包含属性值。界面上「不看屏幕」「用电脑」都是可见的筛选维度，
+      // 用户搜「屏幕」却一条都搜不到会以为坏了。
+      var hay = (s.text + ' ' + (s.tags || []).join(' ') + ' ' + attrText(s.attrs)).toLowerCase();
+      if (q && hay.indexOf(q) === -1) return false;
       for (var k in ui.attrs) {
         if (!Object.prototype.hasOwnProperty.call(ui.attrs, k)) continue;
         if (!ui.attrs[k]) continue;
@@ -1361,6 +1364,16 @@ var SUGGESTIONS = [
       }
       return true;
     });
+  }
+
+  /** 把 {place:'在家', screen:'不看屏幕'} 拍平成 '在家 不看屏幕'，供搜索匹配 */
+  function attrText(attrs) {
+    if (!attrs) return '';
+    var out = [];
+    for (var k in attrs) {
+      if (Object.prototype.hasOwnProperty.call(attrs, k) && attrs[k]) out.push(attrs[k]);
+    }
+    return out.join(' ');
   }
 
   function renderSugFilters() {
@@ -1434,6 +1447,8 @@ var SUGGESTIONS = [
         '<p class="small">换个条件，或者直接在自己的货架里写一条。</p>';
       list.appendChild(li);
       if (foot) foot.textContent = '';
+      var hits0 = $('sugHits');
+      if (hits0) hits0.textContent = '0 / ' + SUGGESTIONS.length;
       return;
     }
 
@@ -1486,9 +1501,16 @@ var SUGGESTIONS = [
     });
     list.appendChild(frag);
 
+    var left = SUGGESTIONS.filter(function (s) { return !inShelf(s.text); }).length;
     if (foot) {
-      var left = SUGGESTIONS.filter(function (s) { return !inShelf(s.text); }).length;
       foot.textContent = '共 ' + SUGGESTIONS.length + ' 条推荐，还有 ' + left + ' 条没加过';
+    }
+
+    // 搜索框右侧的命中数。只在搜索/筛选生效时显示，否则那只是常驻噪音
+    var hits = $('sugHits');
+    if (hits) {
+      var filtering = !!ui.sugSearch.trim() || ATTR_GROUPS.some(function (g) { return ui.attrs[g.key]; });
+      hits.textContent = filtering ? (shown.length + ' / ' + SUGGESTIONS.length) : '';
     }
   }
 
@@ -1508,15 +1530,17 @@ var SUGGESTIONS = [
     var s = SUGGESTIONS[heroIdx];
     var left = SUGGESTIONS.filter(function (x) { return !inShelf(x.text); }).length;
 
-    $('sugHeroIdx').textContent = '第 ' + (heroIdx + 1) + ' / ' + SUGGESTIONS.length
-      + ' 条 · 还剩 ' + left + ' 条没加过';
+    // 徽章只留最有用的一层信息：还剩多少。加过的条数放在页脚就够了
+    $('sugHeroIdx').textContent = left > 0
+      ? (heroIdx + 1) + ' / ' + SUGGESTIONS.length + ' · 还剩 ' + left + ' 条'
+      : '都加过了';
     $('sugHeroText').textContent = s.text;
     $('sugHeroMeta').innerHTML = '';
     $('sugHeroMeta').appendChild(attrDotsEl(s.attrs));
 
     var btn = $('sugHeroAdd');
     var isIn = inShelf(s.text);
-    btn.textContent = isIn ? '✓ 已加入' : '＋ 加进货架';
+    btn.textContent = isIn ? '✓ 已在货架' : '＋ 加进货架';
     btn.disabled = isIn;
   }
 
@@ -1657,6 +1681,7 @@ function closeWipe(keepSettings) {
     randomId = null;
     ui.filter = 'all'; ui.tag = null; ui.search = '';
     $('search').value = '';
+    syncSearchAffordance($('search').parentNode, $('search'));
 
     // 清掉「已备份时间」，因为数据已经没了；顺便清掉免打扰标记
     try {
@@ -1700,8 +1725,10 @@ function closeWipe(keepSettings) {
   $('search').addEventListener('input', function (e) {
     clearTimeout(searchTimer);
     var v = e.target.value;
+    syncSearchAffordance($('search').parentNode, $('search'));
     searchTimer = setTimeout(function () { ui.search = v; renderList(); }, 140);
   });
+  bindSearchClear($('search').parentNode, $('search'), function (v) { ui.search = v; renderList(); });
 
   $('randomBtn').onclick = pickRandom;
   $('randomAgain').onclick = pickRandom;
@@ -1771,8 +1798,40 @@ function closeWipe(keepSettings) {
   $('sugSearch').addEventListener('input', function (e) {
     clearTimeout(sugTimer);
     var v = e.target.value;
+    syncSearchAffordance($('sugSearchWrap'), $('sugSearch'));
     sugTimer = setTimeout(function () { ui.sugSearch = v; renderSugList(); }, 140);
   });
+  bindSearchClear($('sugSearchWrap'), $('sugSearch'), function (v) { ui.sugSearch = v; renderSugList(); });
+
+  /* 搜索框的「有内容就显示 ✕」状态。
+     两个搜索框共用这套，_set 直接写 DOM 不触发 input 事件，避免回环。 */
+  function syncSearchAffordance(wrap, input) {
+    if (!wrap || !input) return;
+    wrap.classList.toggle('has-value', !!input.value);
+  }
+  function bindSearchClear(wrap, input, onChange) {
+    if (!wrap || !input) return;
+    var btn = wrap.querySelector('.search-clear');
+    if (!btn) return;
+    btn.onclick = function () {
+      input.value = '';
+      syncSearchAffordance(wrap, input);
+      onChange('');
+      input.focus();
+    };
+    // Esc 清空（输入框里按 Esc 是最自然的）
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && input.value) {
+        e.stopPropagation();
+        input.value = '';
+        syncSearchAffordance(wrap, input);
+        onChange('');
+      }
+    });
+    input.addEventListener('search', function () {
+      syncSearchAffordance(wrap, input);
+    });
+  }
 
   $('tplBtn').onclick = downloadTemplate;
   $('csvOutBtn').onclick = exportCSV;
