@@ -23,3 +23,7 @@ build/
 # 所以只能靠 .gitignore 排除。根因已修：推送.bat 里不再有 chcp 行——
 # 编码在 tools/push.py 内部用 sys.stdout.reconfigure 处理，不需要改代码页。
 /nul
+
+# node_modules（跑测试时 npm install playwright-core 产生）
+node_modules/
+package-lock.json
