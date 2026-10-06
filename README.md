@@ -28,18 +28,33 @@
 
 ## 视图：我的货架 / 推荐清单
 
-顶部的两个 tab 切换。
+顶部两个 tab 切换（宽屏时两者并排，tab 自动隐藏）。
 
 ### 推荐清单
 
-内置 **60 条**「无聊时可以做的事」，每行左边序号、右边「+」按钮，点一下就加入货架。
+内置 **60 条**「无聊时可以做的小事」，点「+」扔进货架。
 
 - **防重**：已经加过的会变灰并显示 ✓，加不进去
-- **随机挑一件**：🎲 按钮，随机抽一条没加过的直接加进货架（加完自动切回货架页）
+- **大卡轮换**（移动端）：顶部一张大卡展示一条，「换一条」只跳没加过的，
+  点「加进货架」后自动跳下一条，方便连着加
 - **批量添加**：把当前筛选出的全部加进来，超过 12 条会先确认
-- **搜索 + 属性筛选**，见下面的「属性」说明
+- **搜索 + 属性筛选**
 
-清单里 **67% 是「不看屏幕」**的——这个产品最该帮你的事是「别总是刷手机」，所以特意多配了几条。
+清单里 **65% 是「不看屏幕」**的——这个产品最该帮你的是「别总是刷手机」，所以特意多配了几条。
+
+每条最多 **2 个标签 + 3 个属性**，视觉上不拥挤。
+
+### 布局：宽屏左右分栏，窄屏切页
+
+| 屏幕 | 呈现 |
+|---|---|
+| **≥861px** | 「我的货架」和「推荐清单」**左右并排**——右边加进来，左边立刻能看到，不用切页 |
+| **≤860px** | 单列，顶部 tab 切换；推荐页顶部有大卡 |
+
+宽屏下还做了这些调整：容器放宽到 1080px、说明文字与快捷键提示收起、
+快速添加区压紧一档。**断点是 861px**，窄于此就切成单列。
+
+用的是同一套 DOM，靠 CSS 切换，避免两边数据不同步。
 
 ### 属性：三个固定维度
 
@@ -217,6 +232,7 @@ manifest 里还配了一个**长按图标的快捷方式「随机一件」**，�
 ├── tools/
 │   ├── split.js        ← 把 index.html 拆成 app.css + app.js
 │   ├── bundle.js       ← 反向：把 app.css + app.js 合回 index.html
+│   ├── sync-suggestions.js ← 从 .preview 同步推荐清单数据到 app.js
 │   ├── inline-suggestions.js ← 把推荐清单数据内联进 index.html
 │   ├── make-icons.py   ← 图标生成（纯标准库手写 PNG 编码）
 │   ├── push.py         ← 推送 + 认证引导
@@ -228,6 +244,7 @@ manifest 里还配了一个**长按图标的快捷方式「随机一件」**，�
 └── .dev/                ← 浏览器自动化测试，可删
     ├── e2e.js            主流程（增删改查 / 导入导出 / 快捷键 / 持久化）
     ├── e2e-features.js   推荐清单 / 属性筛选 / 每日重复
+    ├── e2e-layout.js     宽屏分栏 / 大卡轮换 / 断点切换
     ├── e2e-xlsx.js       xlsx 导入 + 异常文件容错
     └── e2e-pwa.js        备份提醒 / 清空流程 / PWA 基建
 ```
@@ -253,8 +270,12 @@ node tools/bundle.js   # 改完合回去，index.html 保持完整
 
 ```bash
 npm install playwright-core
-cd .dev && node e2e.js && node e2e-features.js && node e2e-xlsx.js && node e2e-pwa.js
+cd .dev
+node e2e.js && node e2e-features.js && node e2e-layout.js && node e2e-xlsx.js && node e2e-pwa.js
 ```
+
+> `e2e-features.js` 用 **420px 窄视口**：宽屏（≥861px）下是左右分栏，
+> 一些只在单列下可见的元素会点不到。
 
 ---
 
@@ -264,6 +285,7 @@ cd .dev && node e2e.js && node e2e-features.js && node e2e-xlsx.js && node e2e-p
 |---|---|
 | **加/改推荐清单** | `app.js` 顶部的 `SUGGESTIONS` 数组（改完跑 `node tools/bundle.js`） |
 | **加/改属性维度** | `app.js` 的 `ATTR_GROUPS`（地点/设备/屏幕三组） |
+| **改分栏断点** | `app.css` 末尾响应式区的 `@media (min-width: 861px)`，同时改 `app.js` 里的 `WIDE` |
 | 配色 | `app.css` 顶部 `:root` 里的 CSS 变量，暗色在 `html.dark` 那一组 |
 | **图标** | 改 `tools/make-icons.py` 的配色或形状，重跑该脚本 |
 | 默认目标数量 | `app.js` 里的 `var DEFAULT_GOAL = 100;` |

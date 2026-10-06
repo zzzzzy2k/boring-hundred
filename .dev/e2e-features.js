@@ -6,7 +6,11 @@ const log = (...a) => console.log('  ', ...a);
 
 (async () => {
   const browser = await chromium.launch({ executablePath: 'C:/Users/zzy/AppData/Local/ms-playwright/chromium-1228/chrome-win64/chrome.exe' });
-  const ctx = await browser.newContext({ acceptDownloads: true });
+  // 用窄视口：宽屏（≥861px）下是左右分栏，#sugShuffle 会被隐藏
+  const ctx = await browser.newContext({
+    acceptDownloads: true,
+    viewport: { width: 420, height: 900 }
+  });
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
@@ -23,10 +27,12 @@ const log = (...a) => console.log('  ', ...a);
   log('推荐条数:', await page.locator('.sug-item').count());
   log('页脚统计:', (await page.locator('#sugFoot').textContent()).trim());
 
-  console.log('\n=== 2. 推荐清单的序号/加号结构 ===');
+  console.log('\n=== 2. 推荐卡结构（紧凑卡：去序号 / 小圆点属性） ===');
   const first = page.locator('.sug-item').first();
-  log('首行序号:', (await first.locator('.sug-no').textContent()).trim());
   log('首行内容:', (await first.locator('.sug-text').textContent()).trim().slice(0, 24));
+  log('已去掉序号:', await page.locator('.sug-no').count() === 0);
+  log('属性用小圆点表示:', await first.locator('.sug-attrs .sa').count(), '个');
+  log('标签数（应 ≤2 + 可能含"每天"）:', await first.locator('.sug-tags .st').count());
   log('加号可用:', await first.locator('.sug-add').isEnabled());
 
   console.log('\n=== 3. 单条加入货架 + 防重复 ===');
@@ -47,13 +53,13 @@ const log = (...a) => console.log('  ', ...a);
   await page.locator('#sugFilters .attr-toggle', { hasText: '不看屏幕' }).click();
   await page.waitForTimeout(300);
   log('筛「不看屏幕」后条数:', await page.locator('.sug-item').count());
-  const firstAttr = await page.locator('.sug-item').first().locator('.sug-tags .st.attr').allTextContents();
-  log('首条属性标签:', firstAttr.join(' / ') || '(无)');
+  const firstAttr = await page.locator('.sug-item').first().locator('.sug-attrs .sa').allTextContents();
+  log('首条属性:', firstAttr.join(' / ') || '(无)');
   // 叠加第二组筛选：地点=室外
   await page.locator('#sugFilters .attr-group').nth(0).locator('.attr-toggle', { hasText: '室外' }).click();
   await page.waitForTimeout(300);
   log('叠加「室外」后:', await page.locator('.sug-item').count());
-  const firstAttrs2 = await page.locator('.sug-item').first().locator('.sug-tags .st.attr').allTextContents();
+  const firstAttrs2 = await page.locator('.sug-item').first().locator('.sug-attrs .sa').allTextContents();
   log('交集验证（应同时含室外与不看屏幕）:', firstAttrs2.join(' / '));
   await page.locator('#sugFilters .attr-clear').click();
   await page.waitForTimeout(250);
@@ -66,13 +72,22 @@ const log = (...a) => console.log('  ', ...a);
   await page.locator('#sugSearch').fill('');
   await page.waitForTimeout(350);
 
-  console.log('\n=== 6. 每日推荐 ===');
-  await page.locator('#sugShuffle').click();
-  await page.waitForTimeout(400);
-  log('随机推荐后自动切回货架:', await page.locator('#viewShelf').isVisible());
-  log('货架条数:', await page.locator('.card').count());
+  console.log('\n=== 6. 大卡轮换 ===');
+  const heroBefore = await page.locator('#sugHeroText').textContent();
+  await page.locator('#sugHeroSkip').click();
+  await page.waitForTimeout(300);
+  const heroAfter = await page.locator('#sugHeroText').textContent();
+  log('大卡换一条有效:', heroBefore !== heroAfter);
+  log('  ', heroBefore.slice(0, 14), '→', heroAfter.slice(0, 14));
+  log('大卡索引正确:', (await page.locator('#sugHeroIdx').textContent()));
+  await page.locator('#sugHeroAdd').click();
+  await page.waitForTimeout(350);
+  log('大卡加进货架 → 货架条数:', await page.locator('.card').count());
+  log('大卡自动跳到下一条:', heroAfter !== (await page.locator('#sugHeroText').textContent()));
 
   console.log('\n=== 7. 货架的属性筛选栏 ===');
+  await page.locator('#tabShelf').click();      // 回到货架视图
+  await page.waitForTimeout(300);
   await page.locator('#newText').fill('测试属性项');
   await page.locator('#newText').press('Enter');
   await page.waitForTimeout(300);

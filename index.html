@@ -152,7 +152,13 @@ h1, h2, h3, p { margin: 0; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
 ::selection { background: var(--accent-soft); color: var(--accent-deep); }
 
-.app { max-width: 680px; margin: 0 auto; padding: 0 var(--s5) calc(var(--s12) + env(safe-area-inset-bottom)); }
+.app {
+  max-width: 680px; margin: 0 auto;
+  padding: 0 var(--s5) calc(var(--s12) + env(safe-area-inset-bottom));
+  transition: max-width var(--t-mid) var(--ease);
+}
+/* 分栏时两栏并排要放宽（见「10. Responsive」区），不能写在这里——
+   这个位置的媒体查询会被后面 .app 的基础样式覆盖。 */
 .hidden-file { display: none; }
 
 /* ============================================================================
@@ -216,6 +222,23 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
   background: var(--card); color: var(--text);
   font-weight: 500; box-shadow: var(--sh-1);
 }
+
+/* ============================================================================
+   3b. 分栏：宽屏时「我的货架」和「推荐清单」并排
+   ============================================================================
+   同一套 DOM，两种呈现：
+     ≥861px —— 两栏并排， tab 隐藏，大卡也隐藏（窄栏里太占地方）
+     ≤860px —— 单列， tab 切换，大卡出现
+   不用两套 DOM 是为了避免两边数据不同步。
+
+   注意：宽屏的具体规则放在文件末尾的「10. Responsive」区，
+   不能写在这里——CSS 按出现顺序生效，媒体查询写在基础样式之前会被覆盖。
+   ============================================================================ */
+.split { display: block; }
+.pane { min-width: 0; }
+/* 窄屏下未选中的那栏藏起来。用 .hide 而不是 [hidden] 属性：
+   [hidden] 依赖 UA 样式表的 display:none，会被下面 grid 的 display 覆盖掉。 */
+.pane.hide { display: none; }
 
 /* ============================================================================
    4. Composer
@@ -345,46 +368,80 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
    6b. 推荐清单
    ============================================================================ */
 .sug-intro {
-  padding: var(--s4); margin-bottom: var(--s4);
+  padding: var(--s3) var(--s4); margin-bottom: var(--s3);
   background: var(--card); border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
   border-radius: var(--r-md);
-  font-size: 13.5px; color: var(--text-2); line-height: 1.6;
+  font-size: 13px; color: var(--text-2); line-height: 1.55;
 }
-.sug-intro .small { color: var(--muted); font-size: 12.5px; }
+.sug-intro .small { color: var(--muted); font-size: 12px; }
 .sug-bulk { display: flex; gap: var(--s2); margin-top: var(--s3); flex-wrap: wrap; }
-.sug-bulk .btn { flex: 1; min-width: 130px; }
+.sug-bulk .btn { flex: 1; min-width: 118px; }
+
+/* 分栏时的一行小工具条（默认隐藏，宽屏才显示） */
+.sug-toolbar { display: none; gap: var(--s2); margin-bottom: var(--s3); }
+.sug-toolbar .btn { flex: 1; min-width: 0; font-size: 13px; }
 
 .sug-search { margin-bottom: var(--s3); }
 .sug-filters { margin-bottom: var(--s3); }
 
+/* ---------- 大卡轮换（仅窄屏） ---------- */
+.sug-hero {
+  display: block;                /* 窄屏显示，宽屏在媒体查询里关掉 */
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: var(--s5) var(--s4);
+  margin-bottom: var(--s3); box-shadow: var(--sh-2);
+  position: relative; overflow: hidden;
+}
+.sug-hero::after {                /* 右下角一块淡色圆，纯装饰 */
+  content: ''; position: absolute; right: -26px; bottom: -26px;
+  width: 100px; height: 100px; border-radius: 50%;
+  background: var(--accent-soft); opacity: .55; pointer-events: none;
+}
+.sug-hero > * { position: relative; z-index: 1; }
+.hero-idx { font-size: 10.5px; color: var(--faint); letter-spacing: .04em; margin-bottom: var(--s2); }
+.hero-text { font-size: 17.5px; line-height: 1.45; font-weight: 500; margin-bottom: var(--s3); }
+.hero-meta { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.hero-acts { display: flex; gap: var(--s2); margin-top: var(--s4); }
+.hero-acts .btn { flex: 1; min-width: 0; }
+
+/* ---------- 紧凑卡 ---------- */
 .sug-list { display: flex; flex-direction: column; gap: 6px; }
 .sug-item {
-  display: flex; align-items: center; gap: var(--s3);
-  padding: var(--s3) var(--s3) var(--s3) var(--s2);
+  display: flex; align-items: flex-start; gap: var(--s2);
+  padding: 10px 11px 10px 13px; position: relative;
   background: var(--card); border: 1px solid var(--border);
   border-radius: var(--r-md);
-  transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
-.sug-item:hover { border-color: var(--border-2); background: var(--card-2); }
+.sug-item:hover { border-color: var(--border-2); box-shadow: var(--sh-1); }
+/* 左侧色条：标出这条是不是「不看屏幕」 */
+.sug-item::before {
+  content: ''; position: absolute; left: 0; top: 10px; bottom: 10px;
+  width: 3px; border-radius: 0 3px 3px 0; background: var(--border-2);
+}
+.sug-item.nos::before { background: #d4a08c; }
 .sug-item.added { opacity: .5; }
+.sug-item.added::before { background: var(--ok); }
 
-.sug-no {
-  flex-shrink: 0; width: 26px; text-align: right;
-  font-size: 12px; color: var(--faint);
-  font-variant-numeric: tabular-nums; user-select: none;
+.sug-text { flex: 1; min-width: 0; font-size: 14px; line-height: 1.45; }
+
+/* 属性：小圆点 + 文字。比一排灰方块轻得多 */
+.sug-attrs {
+  display: flex; align-items: center; gap: var(--s3);
+  flex-wrap: wrap; margin-top: 4px;
+  font-size: 11px; color: var(--muted);
 }
-.sug-text { flex: 1; min-width: 0; font-size: 14.5px; line-height: 1.5; }
-.sug-tags {
-  display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px;
-}
+.sug-attrs .sa { display: inline-flex; align-items: center; gap: 4px; }
+.sug-attrs .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.sug-attrs .dot.place { background: #a8b5a0; }
+.sug-attrs .dot.device { background: #9aa8c4; }
+.sug-attrs .dot.screen { background: #d4a08c; }
+
+.sug-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
 .sug-tags .st {
-  font-size: 11px; color: var(--muted); background: var(--bg-sunk);
-  padding: 1px 7px; border-radius: 5px;
-}
-.sug-tags .st.attr {
-  background: transparent; border: 1px solid var(--border-2);
-  padding: 0 6px;
+  font-size: 10.5px; color: var(--muted); background: var(--bg-sunk);
+  padding: 1px 6px; border-radius: 4px;
 }
 .sug-tags .st.daily {
   color: var(--accent-deep); background: var(--accent-soft); font-weight: 500;
@@ -392,19 +449,18 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
 
 .sug-add {
   flex-shrink: 0;
-  width: 34px; height: 34px; border-radius: 50%;
+  width: 28px; height: 28px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: var(--accent-soft); color: var(--accent-deep);
-  font-size: 19px; line-height: 1;
+  font-size: 16px; line-height: 1;
   transition: all var(--t-fast) var(--ease);
 }
-.sug-add:hover { background: var(--accent); color: #fff; transform: scale(1.06); }
+.sug-add:hover { background: var(--accent); color: #fff; transform: scale(1.12); }
 .sug-add:active { transform: scale(.94); }
 .sug-add:disabled {
-  background: var(--bg-sunk); color: var(--faint);
-  cursor: default; transform: none;
+  background: var(--ok); color: #fff;
+  cursor: default; transform: none; font-size: 13px;
 }
-.sug-add.done-yes { font-size: 15px; }
 
 .sug-foot { margin-top: var(--s5); font-size: 12px; color: var(--faint); text-align: center; }
 
@@ -694,6 +750,54 @@ footer .flink svg { width: 15px; height: 15px; }
 /* ============================================================================
    10. Responsive
    ============================================================================ */
+
+/* ---- 宽屏（≥861px）：左右分栏 ----
+   必须放在所有基础样式之后。CSS 按出现顺序生效，
+   媒体查询写早了会被后面的基础样式覆盖掉。 */
+@media (min-width: 861px) {
+  .app { max-width: 1080px; }             /* 两栏并排，整体要放宽，否则每栏太窄 */
+
+  .view-tabs { display: none; }           /* 分栏时不需要切页 */
+  .sug-hero { display: none !important; } /* 大卡在窄栏里太占地方 */
+  .pane.hide { display: block; }          /* 宽屏一律都显示，忽略 .hide */
+
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    gap: var(--s5);
+  }
+  .pane {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--s4);
+  }
+  /* 两栏并排时各自得有个标题才知道这是哪栏。
+     用伪元素生成，省得在 HTML 里放两份只在宽屏出现的节点 */
+  #viewShelf::before,
+  #viewSuggest::before {
+    content: '';
+    display: block;
+    font-size: 14px; font-weight: 600;
+    margin-bottom: var(--s3);
+    padding-bottom: var(--s2);
+    border-bottom: 1px solid var(--border);
+  }
+  #viewShelf::before { content: '我的货架'; }
+  #viewSuggest::before { content: '推荐清单'; }
+
+  /* 右栏已经很明确了，一大段说明文字纯属占地方 */
+  .sug-intro { display: none; }
+  .sug-toolbar { display: flex; }
+
+  /* 左栏宽度有限，快速添加压紧一点 */
+  .composer { padding: var(--s3); }
+  .composer textarea { min-height: 40px; }
+  .hint { display: none; }                /* 快捷键提示在分栏下是噪音 */
+  .quick-tags { margin-top: var(--s2); padding-top: var(--s2); }
+}
+
 @media (max-width: 560px) {
   body { font-size: 14.5px; }
   .app { padding-left: var(--s4); padding-right: var(--s4); }
@@ -764,14 +868,19 @@ footer .flink svg { width: 15px; height: 15px; }
     </div>
   </header>
 
-  <!-- ============ 视图切换 ============ -->
+  <!-- ============ 布局开关 ============
+       宽屏（≥861px）：两栏并排，tab 隐藏
+       窄屏：单列，用 tab 切换
+       用的是同一套 DOM，靠 CSS 切换显示方式，不会出现两边数据不同步 -->
   <nav class="view-tabs" role="tablist" aria-label="视图切换">
     <button class="view-tab active" id="tabShelf" role="tab" aria-selected="true" aria-controls="viewShelf">我的货架</button>
     <button class="view-tab" id="tabSuggest" role="tab" aria-selected="false" aria-controls="viewSuggest">推荐清单</button>
   </nav>
 
-  <!-- ============ 视图一：我的货架 ============ -->
-  <div id="viewShelf" role="tabpanel" aria-labelledby="tabShelf">
+  <div class="split">
+
+  <!-- ============ 我的货架 ============ -->
+  <div class="pane" id="viewShelf" role="tabpanel" aria-labelledby="tabShelf">
 
   <!-- ============ Composer ============ -->
   <section class="composer" aria-label="添加小事">
@@ -835,15 +944,33 @@ footer .flink svg { width: 15px; height: 15px; }
 
   </div><!-- /viewShelf -->
 
-  <!-- ============ 视图二：推荐清单 ============ -->
-  <div id="viewSuggest" role="tabpanel" aria-labelledby="tabSuggest" hidden>
+  <!-- ============ 推荐清单 ============ -->
+  <div class="pane hide" id="viewSuggest" role="tabpanel" aria-labelledby="tabSuggest">
 
     <div class="sug-intro">
-      <p>不知道写什么的时候，从这里挑一件扔进货架。<br>
-         <span class="small">每条右边的「+」加进来就会变成你的一件小事，之后可以随便改。</span></p>
+      <p>不知道写什么的时候，从这里挑一件扔进货架。
+         <span class="small">点右边的「+」加进来，就会变成你的一件小事。</span></p>
       <div class="sug-bulk">
-        <button class="btn accent" id="sugShuffle">🎲 随机挑一件</button>
+        <button class="btn accent" id="sugShuffle">🎲 换一批</button>
         <button class="btn ghost" id="sugAddAll">把筛选出的都加进来</button>
+      </div>
+    </div>
+
+    <!-- 分栏时用的一行小工具条：只给「换一批」，省得占一整块 -->
+    <div class="sug-toolbar">
+      <button class="btn accent" id="sugShuffleWide">🎲 换一批</button>
+      <button class="btn ghost" id="sugAddAllWide">全部加进来</button>
+    </div>
+
+    <!-- 大卡轮换：只在窄屏出现。宽屏两栏并排时大卡太占地方，
+         而且桌面上你有足够空间「挑」，不需要被「推荐」 -->
+    <div class="sug-hero" id="sugHero">
+      <div class="hero-idx" id="sugHeroIdx"></div>
+      <div class="hero-text" id="sugHeroText"></div>
+      <div class="hero-meta" id="sugHeroMeta"></div>
+      <div class="hero-acts">
+        <button class="btn primary" id="sugHeroAdd">＋ 加进货架</button>
+        <button class="btn ghost" id="sugHeroSkip">🎲 换一条</button>
       </div>
     </div>
 
@@ -862,6 +989,8 @@ footer .flink svg { width: 15px; height: 15px; }
 
     <p class="sug-foot" id="sugFoot"></p>
   </div>
+
+  </div><!-- /split -->
 
   <!-- ============ Footer ============ -->
   <footer>
@@ -1101,79 +1230,66 @@ footer .flink svg { width: 15px; height: 15px; }
      1b. 推荐清单数据（60 条，67% 是不看屏幕的）
      ================================================================== */
 var SUGGESTIONS = [
-  /* ---------- 室内 · 不看屏幕 ---------- */
-  { text: '把手机放远一点，静静听十分钟窗外的动静', tags: ['发呆', '10分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '做一道从没做过的菜，哪怕只是一碗面', tags: ['动手', '出门'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '收拾一个抽屉，只收这一处，其他都不动', tags: ['整理', '10分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '找出三件想扔但舍不得的东西，认真想想留不留', tags: ['整理'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '把床单被套换下来洗', tags: ['动手', '在家'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '给绿植浇水，顺便擦一擦叶子', tags: ['动手', '5分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' }, repeat: 'daily' },
-  { text: '站 stretching 拉伸十分钟，对着墙也行', tags: ['运动', '10分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' }, repeat: 'daily' },
-  { text: '闭眼躺十分钟，什么都不做', tags: ['发呆', '休息'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '把手机里的截图文件夹清一清', tags: ['整理', '用手机'], attrs: { place: '在家', device: '用手机', screen: '要屏幕' } },
-  { text: '整理一次相册，删掉 20 张重复的', tags: ['整理', '用手机'], attrs: { place: '在家', device: '用手机', screen: '要屏幕' } },
-  { text: '给书架重排一次——不看价格，只看眼缘', tags: ['整理', '在家'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '把充电线、钥匙、常用小物固定到一个位置', tags: ['整理', '5分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '挑一张/album 封面，摆到看得见的地方', tags: ['整理', '在家'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '写三行今天发生的事，写完就算数', tags: ['记录', '5分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '泡一壶茶，慢慢喝完一整杯', tags: ['发呆', '放松'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '把明天的第一件事写下来，想清楚了再睡', tags: ['记录', '5分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-
-  /* ---------- 室内 · 用电脑 ---------- */
-  { text: '把浏览器书签栏彻底整理一遍', tags: ['整理', '用电脑'], attrs: { place: '在家', device: '用电脑', screen: '要屏幕' } },
-  { text: '把下载文件夹清空，建立一个「待整理」文件夹', tags: ['整理', '用电脑'], attrs: { place: '在家', device: '用电脑', screen: '要屏幕' } },
-  { text: '写一个特别没用但很快乐的小工具', tags: ['动手', '用电脑'], attrs: { place: '在家', device: '用电脑', screen: '要屏幕' } },
-  { text: '把电脑桌面壁纸换掉', tags: ['5分钟', '用电脑'], attrs: { place: '在家', device: '用电脑', screen: '要屏幕' } },
-  { text: '看一部你收藏了但一直没看的电影', tags: ['放松', '30分钟'], attrs: { place: '在家', device: '用电脑', screen: '要屏幕' } },
-  { text: '把硬盘里从没打开过的文件夹都看一眼', tags: ['整理', '用电脑'], attrs: { place: '在家', device: '用电脑', screen: '要屏幕' } },
-  { text: '给某个开源项目写个README（哪怕是自己的）', tags: ['动手', '用电脑'], attrs: { place: '在家', device: '用电脑', screen: '要屏幕' } },
-
-  /* ---------- 室内 · 用手机 ---------- */
-  { text: '关掉所有推送通知，安静待一小时', tags: ['休息', '用手机'], attrs: { place: '在家', device: '用手机', screen: '要屏幕' } },
-  { text: '把常用 App 按「用得上的/用不上的」分两堆', tags: ['整理', '用手机'], attrs: { place: '在家', device: '用手机', screen: '要屏幕' } },
-  { text: '把首页的 App 数量减到一屏以内', tags: ['整理', '用手机'], attrs: { place: '在家', device: '用手机', screen: '要屏幕' } },
-  { text: '关掉短视频 App 的推荐推送', tags: ['休息', '用手机'], attrs: { place: '在家', device: '用手机', screen: '要屏幕' } },
-
-  /* ---------- 室外 ---------- */
-  { text: '去一条没走过的小路走走，不带目的地', tags: ['出门', '散步'], attrs: { place: '室外', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '去公园坐半小时，什么都不干', tags: ['发呆', '室外'], attrs: { place: '室外', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '抬头看看天，数一下云', tags: ['发呆', '5分钟'], attrs: { place: '室外', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '绕着小区走一圈，走平时没走的那半圈', tags: ['出门', '运动'], attrs: { place: '室外', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '去便利店买一样没吃过的东西', tags: ['出门', '10分钟'], attrs: { place: '室内', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '找一家没去过的店，点没点过的菜', tags: ['出门', '探索'], attrs: { place: '室内', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '在附近走一走，认三条没见过的街', tags: ['出门', '探索'], attrs: { place: '室外', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '去菜市场逛一圈，不买也行', tags: ['出门', '30分钟'], attrs: { place: '室内', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '找一家咖啡馆坐着，看别人，自己发呆', tags: ['发呆', '休息'], attrs: { place: '室内', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '给某个路口拍张照，攒一个「我走过的路口」系列', tags: ['记录', '用手机'], attrs: { place: '室外', device: '用手机', screen: '要屏幕' } },
-
-  /* ---------- 室内 · 稍微走动的 ---------- */
-  { text: '做 20 个深蹲，或者扶着桌子压腿一分钟', tags: ['运动', '5分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' }, repeat: 'daily' },
-  { text: '靠墙站三分钟，把腰挺直', tags: ['运动', '5分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' }, repeat: 'daily' },
-  { text: '爬六层楼，当健身', tags: ['运动', '10分钟'], attrs: { place: '室外', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '开窗通风十分钟，让房间换口气', tags: ['5分钟', '在家'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '把鞋子全部拿出来重新摆一遍', tags: ['整理', '10分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '给房间换一个香薰或者换一束花', tags: ['5分钟', '在家'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '把脏衣服立刻洗了，不要攒', tags: ['动手', '在家'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '擦一遍门把手和开关面板', tags: ['整理', '10分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '给一个很久没联系的人发条消息', tags: ['社交', '5分钟'], attrs: { place: '在家', device: '用手机', screen: '要屏幕' } },
-  { text: '把冰箱里过期的东西清出来', tags: ['整理', '在家'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-
-  /* ---------- 需要动脑但不出门 ---------- */
-  { text: '翻相册找一张自己十年前的照片，看了别删', tags: ['记录', '用手机'], attrs: { place: '在家', device: '用手机', screen: '要屏幕' } },
-  { text: '列出「今年做的 10 件还不错的事」', tags: ['记录', '30分钟'], attrs: { place: '在家', device: '用电脑', screen: '要屏幕' } },
-  { text: '把一个拖了很久的小决定做了', tags: ['整理', '5分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '学一个新动作：比如徒手撑、开后空、拍出片', tags: ['探索', '30分钟'], attrs: { place: '在家', device: '用手机', screen: '要屏幕' } },
-  { text: '把一个想联系但怕尴尬的人先约了', tags: ['社交', '5分钟'], attrs: { place: '在家', device: '用手机', screen: '要屏幕' } },
-  { text: '去菜市场或超市，只买够今天吃的，不多买', tags: ['出门', '30分钟'], attrs: { place: '室内', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '煮一壶茶或者咖啡，认认真真等它出味', tags: ['动手', '放松'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '睡前把明天的衣服挑好放在门口', tags: ['5分钟', '在家'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-
-  /* ---------- 室内 · 动脑 ---------- */
-  { text: '给自己出一道题并解出来（数独、字谜都行）', tags: ['探索', '10分钟'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '把手机里想看的文章存下来，然后真的看一篇', tags: ['整理', '用手机'], attrs: { place: '在家', device: '用手机', screen: '要屏幕' } },
-  { text: '去一次楼下的超市，只买三样东西', tags: ['出门', '10分钟'], attrs: { place: '室内', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '把一个抽屉装满「以后可能用得上」的东西', tags: ['整理', '在家'], attrs: { place: '在家', device: '无需电脑', screen: '不看屏幕' } },
-  { text: '下楼取快递，顺便走一圈回来', tags: ['出门', '10分钟'], attrs: { place: '室外', device: '无需电脑', screen: '不看屏幕' } }
+  { text: "把手机放远一点，静静听十分钟窗外的动静", tags: ["发呆", "10分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "做一道从没做过的菜，哪怕只是一碗面", tags: ["动手"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "收拾一个抽屉，只收这一处，其他都不动", tags: ["整理", "10分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "找出三件想扔但舍不得的东西，认真想想留不留", tags: ["整理"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "把床单被套换下来洗", tags: ["动手"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "给绿植浇水，顺便擦一擦叶子", tags: ["动手", "5分钟"], repeat: 'daily', attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "对着墙拉伸十分钟，把腰背舒展开", tags: ["运动", "10分钟"], repeat: 'daily', attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "闭眼躺十分钟，什么都不做", tags: ["发呆", "休息"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "把手机里的截图文件夹清一清", tags: ["整理"], attrs: { place: "在家", device: "用手机", screen: "要屏幕" } },
+  { text: "整理一次相册，删掉 20 张重复的", tags: ["整理"], attrs: { place: "在家", device: "用手机", screen: "要屏幕" } },
+  { text: "给书架重排一次——不看价格，只看眼缘", tags: ["整理"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "把充电线、钥匙、常用小物固定到一个位置", tags: ["整理", "5分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "挑一张专辑封面，摆到看得见的地方", tags: ["整理"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "写三行今天发生的事，写完就算数", tags: ["记录", "5分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "泡一壶茶，慢慢喝完一整杯", tags: ["发呆", "放松"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "把明天的第一件事写下来，想清楚再睡", tags: ["记录", "5分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "把浏览器书签栏彻底整理一遍", tags: ["整理"], attrs: { place: "在家", device: "用电脑", screen: "要屏幕" } },
+  { text: "把下载文件夹清空，建一个「待整理」", tags: ["整理"], attrs: { place: "在家", device: "用电脑", screen: "要屏幕" } },
+  { text: "写一个特别没用但很快乐的小工具", tags: ["动手"], attrs: { place: "在家", device: "用电脑", screen: "要屏幕" } },
+  { text: "把电脑桌面壁纸换掉", tags: ["5分钟"], attrs: { place: "在家", device: "用电脑", screen: "要屏幕" } },
+  { text: "看一部收藏了但一直没看的电影", tags: ["放松", "30分钟"], attrs: { place: "在家", device: "用电脑", screen: "要屏幕" } },
+  { text: "硬盘里从没打开过的文件夹，都看一眼", tags: ["整理"], attrs: { place: "在家", device: "用电脑", screen: "要屏幕" } },
+  { text: "给某个开源项目写个 README（哪怕是自己的）", tags: ["动手"], attrs: { place: "在家", device: "用电脑", screen: "要屏幕" } },
+  { text: "关掉所有推送通知，安静待一小时", tags: ["休息"], attrs: { place: "在家", device: "用手机", screen: "要屏幕" } },
+  { text: "常用 App 按「用得上的 / 不上的」分两堆", tags: ["整理"], attrs: { place: "在家", device: "用手机", screen: "要屏幕" } },
+  { text: "把首页的 App 数量减到一屏以内", tags: ["整理"], attrs: { place: "在家", device: "用手机", screen: "要屏幕" } },
+  { text: "关掉短视频 App 的推荐推送", tags: ["休息"], attrs: { place: "在家", device: "用手机", screen: "要屏幕" } },
+  { text: "去一条没走过的小路走走，不带目的地", tags: ["散步"], attrs: { place: "室外", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "去公园坐半小时，什么都不干", tags: ["发呆"], attrs: { place: "室外", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "抬头看看天，数一下云", tags: ["发呆", "5分钟"], attrs: { place: "室外", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "绕着小区走一圈，走平时没走的那半圈", tags: ["运动"], attrs: { place: "室外", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "去便利店买一样没吃过的东西", tags: ["10分钟"], attrs: { place: "室内", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "在附近走一走，认三条没见过的街", tags: ["探索"], attrs: { place: "室外", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "去菜市场逛一圈，不买也行", tags: ["30分钟"], attrs: { place: "室内", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "找一家咖啡馆坐着，看别人，自己发呆", tags: ["发呆", "休息"], attrs: { place: "室内", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "给某个路口拍张照，攒一个「走过的路口」", tags: ["记录"], attrs: { place: "室外", device: "用手机", screen: "要屏幕" } },
+  { text: "做 20 个深蹲，或扶着桌子压腿一分钟", tags: ["运动", "5分钟"], repeat: 'daily', attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "靠墙站三分钟，把腰挺直", tags: ["运动", "5分钟"], repeat: 'daily', attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "爬六层楼，当健身", tags: ["运动", "10分钟"], attrs: { place: "室外", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "开窗通风十分钟，让房间换口气", tags: ["5分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "把鞋子全部拿出来重新摆一遍", tags: ["整理", "10分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "给房间换一个香薰，或者换一束花", tags: ["5分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "把脏衣服立刻洗了，不要攒", tags: ["动手"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "擦一遍门把手和开关面板", tags: ["整理", "10分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "给一个很久没联系的人发条消息", tags: ["社交", "5分钟"], attrs: { place: "在家", device: "用手机", screen: "要屏幕" } },
+  { text: "把冰箱里过期的东西清出来", tags: ["整理"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "翻相册找一张十年前的照片，看了别删", tags: ["记录"], attrs: { place: "在家", device: "用手机", screen: "要屏幕" } },
+  { text: "列出「今年做的 10 件还不错的事」", tags: ["记录", "30分钟"], attrs: { place: "在家", device: "用电脑", screen: "要屏幕" } },
+  { text: "把一个拖了很久的小决定做了", tags: ["5分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "学一个新动作：徒手撑、开后空、拍出片", tags: ["探索", "30分钟"], attrs: { place: "在家", device: "用手机", screen: "要屏幕" } },
+  { text: "给一个想联系但怕尴尬的人先约了", tags: ["社交", "5分钟"], attrs: { place: "在家", device: "用手机", screen: "要屏幕" } },
+  { text: "煮一壶茶或咖啡，认认真真等它出味", tags: ["动手", "放松"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "睡前把明天的衣服挑好放在门口", tags: ["5分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "给自己出一道题并解出来（数独、字谜都行）", tags: ["探索", "10分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "把想看的文章存下来，然后真的看一篇", tags: ["整理"], attrs: { place: "在家", device: "用手机", screen: "要屏幕" } },
+  { text: "下楼取快递，顺便走一圈回来", tags: ["10分钟"], attrs: { place: "室外", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "把耳机线理顺，或者换个地方收起来", tags: ["整理", "5分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "找一支笔，把最近想记的事写在纸上", tags: ["记录", "5分钟"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } },
+  { text: "把手机亮度调到最低，屏保换张纯色图", tags: ["5分钟"], attrs: { place: "在家", device: "用手机", screen: "要屏幕" } },
+  { text: "数一下家里有多少个插座够用，哪几个该换", tags: ["整理"], attrs: { place: "在家", device: "无需电脑", screen: "不看屏幕" } }
 ];
 
 /* ==================================================================
@@ -1429,9 +1545,9 @@ var SUGGESTIONS = [
   function render() {
     renderStats(); renderFilters(); renderAttrBar();
     renderQuickTags(); renderBackupBar(); renderList();
-    // 推荐清单页开着时同步刷新（新增/删除都会影响「已添加」标记）
-    if (ui.view === 'suggest' && !$('viewSuggest').hidden) {
-      renderSugFilters(); renderSugList();
+    // 推荐清单开着时同步刷新（新增/删除都会影响「已添加」标记）
+    if (!$('viewSuggest').classList.contains('hide') || isWide()) {
+      renderSugFilters(); renderSugList(); paintHero();
     }
   }
 
@@ -2434,6 +2550,23 @@ var SUGGESTIONS = [
     }
   }
 
+  /** 推荐卡里的属性小圆点组 */
+  function attrDotsEl(attrs) {
+    var box = document.createElement('div');
+    box.className = 'sug-attrs';
+    allAttrKeys().forEach(function (k) {
+      if (!attrs || !attrs[k]) return;
+      var m = document.createElement('span');
+      m.className = 'sa';
+      var dot = document.createElement('i');
+      dot.className = 'dot ' + k;
+      m.appendChild(dot);
+      m.appendChild(document.createTextNode(attrs[k]));
+      box.appendChild(m);
+    });
+    return box;
+  }
+
   function renderSugList() {
     var list = $('sugList');
     if (!list) return;
@@ -2446,27 +2579,28 @@ var SUGGESTIONS = [
       var li = document.createElement('li');
       li.className = 'empty';
       li.innerHTML = '<span class="emoji">🔍</span><p>没有匹配的推荐。</p>' +
-        '<p class="small">换个条件，或者直接在上方「我的货架」里写一条自己的。</p>';
+        '<p class="small">换个条件，或者直接在自己的货架里写一条。</p>';
       list.appendChild(li);
       if (foot) foot.textContent = '';
       return;
     }
 
     var frag = document.createDocumentFragment();
-    shown.forEach(function (s, idx) {
-      var added = inShelf(s.text);
+    shown.forEach(function (s) {
+      var isIn = inShelf(s.text);
 
       var li = document.createElement('li');
-      li.className = 'sug-item' + (added ? ' added' : '');
-
-      var no = document.createElement('span');
-      no.className = 'sug-no';
-      no.textContent = (idx + 1) + '.';
-      li.appendChild(no);
+      li.className = 'sug-item'
+        + (isIn ? ' added' : '')
+        + (s.attrs && s.attrs.screen === '不看屏幕' ? ' nos' : '');
 
       var body = document.createElement('div');
       body.className = 'sug-text';
       body.appendChild(document.createTextNode(s.text));
+
+      // 属性用小圆点，不再是一排灰方块
+      var attrs = attrDotsEl(s.attrs);
+      if (attrs.childNodes.length) body.appendChild(attrs);
 
       var tags = document.createElement('div');
       tags.className = 'sug-tags';
@@ -2483,23 +2617,16 @@ var SUGGESTIONS = [
         d.title = '加入后会变成每日重复项';
         tags.appendChild(d);
       }
-      allAttrKeys().forEach(function (k) {
-        if (!s.attrs || !s.attrs[k]) return;
-        var a = document.createElement('span');
-        a.className = 'st attr';
-        a.textContent = s.attrs[k];
-        tags.appendChild(a);
-      });
       if (tags.childNodes.length) body.appendChild(tags);
       li.appendChild(body);
 
       var add = document.createElement('button');
-      add.className = 'sug-add' + (added ? ' done-yes' : '');
+      add.className = 'sug-add';
       add.type = 'button';
-      add.textContent = added ? '✓' : '+';
-      add.disabled = added;
-      add.title = added ? '货架里已经有了' : '加入我的货架';
-      add.setAttribute('aria-label', (added ? '已在货架：' : '加入我的货架：') + s.text);
+      add.textContent = isIn ? '✓' : '+';
+      add.disabled = isIn;
+      add.title = isIn ? '货架里已经有了' : '加入我的货架';
+      add.setAttribute('aria-label', (isIn ? '已在货架：' : '加入我的货架：') + s.text);
       add.onclick = function () { addFromSuggest(s); };
       li.appendChild(add);
 
@@ -2508,10 +2635,47 @@ var SUGGESTIONS = [
     list.appendChild(frag);
 
     if (foot) {
-      var n = SUGGESTIONS.length;
       var left = SUGGESTIONS.filter(function (s) { return !inShelf(s.text); }).length;
-      foot.textContent = '共 ' + n + ' 条推荐，还有 ' + left + ' 条没加过';
+      foot.textContent = '共 ' + SUGGESTIONS.length + ' 条推荐，还有 ' + left + ' 条没加过';
     }
+  }
+
+  /* ------------------------------------------------------------------
+     大卡轮换（仅窄屏可见）
+     「换一条」只跳没加过的，否则加完之后再点还是同一条会很烦。
+     ------------------------------------------------------------------ */
+  var heroIdx = 0;
+
+  function paintHero() {
+    var host = $('sugHero');
+    if (!host) return;
+    if (SUGGESTIONS.length === 0) { host.style.display = 'none'; return; }
+
+    if (inShelf(SUGGESTIONS[heroIdx].text)) skipHero(true);
+
+    var s = SUGGESTIONS[heroIdx];
+    var left = SUGGESTIONS.filter(function (x) { return !inShelf(x.text); }).length;
+
+    $('sugHeroIdx').textContent = '第 ' + (heroIdx + 1) + ' / ' + SUGGESTIONS.length
+      + ' 条 · 还剩 ' + left + ' 条没加过';
+    $('sugHeroText').textContent = s.text;
+    $('sugHeroMeta').innerHTML = '';
+    $('sugHeroMeta').appendChild(attrDotsEl(s.attrs));
+
+    var btn = $('sugHeroAdd');
+    var isIn = inShelf(s.text);
+    btn.textContent = isIn ? '✓ 已加入' : '＋ 加进货架';
+    btn.disabled = isIn;
+  }
+
+  /** 跳到下一条没加过的；silently=true 时不重复调用（避免递归） */
+  function skipHero(silently) {
+    var start = heroIdx;
+    do {
+      heroIdx = (heroIdx + 1) % SUGGESTIONS.length;
+      if (heroIdx === start) break;          // 全部加完了
+    } while (inShelf(SUGGESTIONS[heroIdx].text));
+    if (!silently) paintHero();
   }
 
   function makeItemFromSuggestion(s) {
@@ -2546,11 +2710,16 @@ var SUGGESTIONS = [
   }
 
   /** 从推荐清单随机挑一件（跳过货架里已有的） */
+  /* 「换一批」：大卡跳到下一条没加过的。
+     宽屏时大卡是隐藏的，这时改成随机挑一条直接加进来。 */
   function addRandomSuggestion() {
-    var pool = SUGGESTIONS.filter(function (s) { return !inShelf(s.text); });
-    if (pool.length === 0) { toast('推荐清单都加过了'); return; }
-    addFromSuggest(pool[Math.floor(Math.random() * pool.length)]);
-    switchView('shelf');
+    if (isWide()) {
+      var pool = SUGGESTIONS.filter(function (s) { return !inShelf(s.text); });
+      if (pool.length === 0) { toast('推荐清单都加过了'); return; }
+      addFromSuggest(pool[Math.floor(Math.random() * pool.length)]);
+      return;
+    }
+    skipHero(false);
   }
 
   /** 把当前筛选出的、还没加过的，全加进来 */
@@ -2574,16 +2743,29 @@ var SUGGESTIONS = [
     });
   }
 
+  /* 分栏断点：与 CSS 里的 @media (min-width: 861px) 保持一致 */
+  var WIDE = window.matchMedia('(min-width: 861px)');
+  var isWide = function () { return WIDE.matches; };
+
   function switchView(v) {
     ui.view = v;
-    $('viewShelf').hidden = (v !== 'shelf');
-    $('viewSuggest').hidden = (v !== 'suggest');
+    // 宽屏时两栏都显示，.hide 不生效（由 CSS 媒体查询兜住）
+    var wide = isWide();
+    $('viewShelf').classList.toggle('hide', !wide && v !== 'shelf');
+    $('viewSuggest').classList.toggle('hide', !wide && v !== 'suggest');
     $('tabShelf').classList.toggle('active', v === 'shelf');
     $('tabSuggest').classList.toggle('active', v === 'suggest');
     $('tabShelf').setAttribute('aria-selected', v === 'shelf' ? 'true' : 'false');
     $('tabSuggest').setAttribute('aria-selected', v === 'suggest' ? 'true' : 'false');
-    if (v === 'suggest') { renderSugFilters(); renderSugList(); }
+    if (v === 'suggest' || wide) { renderSugFilters(); renderSugList(); paintHero(); }
   }
+
+  // 跨越断点时重新计算显隐，否则从窄屏切到宽屏会留下一栏是空的
+  function onBreakpoint() {
+    switchView(ui.view);
+  }
+  if (WIDE.addEventListener) WIDE.addEventListener('change', onBreakpoint);
+  else if (WIDE.addListener) WIDE.addListener(onBreakpoint);   // 老浏览器
 
   /* ==================================================================
      13. 清空数据
@@ -2715,6 +2897,15 @@ function closeWipe(keepSettings) {
   $('tabSuggest').onclick = function () { switchView('suggest'); };
   $('sugShuffle').onclick = addRandomSuggestion;
   $('sugAddAll').onclick = addAllVisible;
+  $('sugShuffleWide').onclick = addRandomSuggestion;
+  $('sugAddAllWide').onclick = addAllVisible;
+  $('sugHeroSkip').onclick = function () { skipHero(false); };
+  $('sugHeroAdd').onclick = function () {
+    var s = SUGGESTIONS[heroIdx];
+    if (!s || inShelf(s.text)) { skipHero(false); return; }
+    addFromSuggest(s);
+    skipHero(false);          // 加完自动跳到下一条，方便连着加
+  };
 
   $('attrBtn').onclick = function () {
     // 已经有筛选条件时，再点一下收起（而不是清空）
@@ -2871,8 +3062,8 @@ function closeWipe(keepSettings) {
     if (e.key === '/') { e.preventDefault(); $('search').focus(); }
     else if (e.key === 'r' || e.key === 'R') {
       e.preventDefault();
-      // 在推荐页按 R 是「随机抽一条推荐」，别去抽货架
-      if (ui.view === 'suggest') addRandomSuggestion();
+      // 推荐页按 R = 换一条推荐（宽屏则是随机加一条），别去抽货架
+      if (ui.view === 'suggest' || isWide()) addRandomSuggestion();
       else pickRandom();
     }
     else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); newText.focus(); }
@@ -2893,6 +3084,9 @@ function closeWipe(keepSettings) {
   $('footRepo').href = REPO_URL;
   paintThemeBtn();
   syncSeg();
+  // 先按当前断点决定显隐（宽屏要同时显示两栏），
+  // 再 render——render 里会读 viewSuggest.hidden 来决定要不要刷新推荐清单
+  switchView(ui.view);
   render();
   autoGrow(newText);
   if (items.length === 0) setTimeout(function () { newText.focus(); }, 200);

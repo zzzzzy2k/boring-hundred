@@ -126,7 +126,13 @@ h1, h2, h3, p { margin: 0; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
 ::selection { background: var(--accent-soft); color: var(--accent-deep); }
 
-.app { max-width: 680px; margin: 0 auto; padding: 0 var(--s5) calc(var(--s12) + env(safe-area-inset-bottom)); }
+.app {
+  max-width: 680px; margin: 0 auto;
+  padding: 0 var(--s5) calc(var(--s12) + env(safe-area-inset-bottom));
+  transition: max-width var(--t-mid) var(--ease);
+}
+/* 分栏时两栏并排要放宽（见「10. Responsive」区），不能写在这里——
+   这个位置的媒体查询会被后面 .app 的基础样式覆盖。 */
 .hidden-file { display: none; }
 
 /* ============================================================================
@@ -190,6 +196,23 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
   background: var(--card); color: var(--text);
   font-weight: 500; box-shadow: var(--sh-1);
 }
+
+/* ============================================================================
+   3b. 分栏：宽屏时「我的货架」和「推荐清单」并排
+   ============================================================================
+   同一套 DOM，两种呈现：
+     ≥861px —— 两栏并排， tab 隐藏，大卡也隐藏（窄栏里太占地方）
+     ≤860px —— 单列， tab 切换，大卡出现
+   不用两套 DOM 是为了避免两边数据不同步。
+
+   注意：宽屏的具体规则放在文件末尾的「10. Responsive」区，
+   不能写在这里——CSS 按出现顺序生效，媒体查询写在基础样式之前会被覆盖。
+   ============================================================================ */
+.split { display: block; }
+.pane { min-width: 0; }
+/* 窄屏下未选中的那栏藏起来。用 .hide 而不是 [hidden] 属性：
+   [hidden] 依赖 UA 样式表的 display:none，会被下面 grid 的 display 覆盖掉。 */
+.pane.hide { display: none; }
 
 /* ============================================================================
    4. Composer
@@ -319,46 +342,80 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
    6b. 推荐清单
    ============================================================================ */
 .sug-intro {
-  padding: var(--s4); margin-bottom: var(--s4);
+  padding: var(--s3) var(--s4); margin-bottom: var(--s3);
   background: var(--card); border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
   border-radius: var(--r-md);
-  font-size: 13.5px; color: var(--text-2); line-height: 1.6;
+  font-size: 13px; color: var(--text-2); line-height: 1.55;
 }
-.sug-intro .small { color: var(--muted); font-size: 12.5px; }
+.sug-intro .small { color: var(--muted); font-size: 12px; }
 .sug-bulk { display: flex; gap: var(--s2); margin-top: var(--s3); flex-wrap: wrap; }
-.sug-bulk .btn { flex: 1; min-width: 130px; }
+.sug-bulk .btn { flex: 1; min-width: 118px; }
+
+/* 分栏时的一行小工具条（默认隐藏，宽屏才显示） */
+.sug-toolbar { display: none; gap: var(--s2); margin-bottom: var(--s3); }
+.sug-toolbar .btn { flex: 1; min-width: 0; font-size: 13px; }
 
 .sug-search { margin-bottom: var(--s3); }
 .sug-filters { margin-bottom: var(--s3); }
 
+/* ---------- 大卡轮换（仅窄屏） ---------- */
+.sug-hero {
+  display: block;                /* 窄屏显示，宽屏在媒体查询里关掉 */
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: var(--s5) var(--s4);
+  margin-bottom: var(--s3); box-shadow: var(--sh-2);
+  position: relative; overflow: hidden;
+}
+.sug-hero::after {                /* 右下角一块淡色圆，纯装饰 */
+  content: ''; position: absolute; right: -26px; bottom: -26px;
+  width: 100px; height: 100px; border-radius: 50%;
+  background: var(--accent-soft); opacity: .55; pointer-events: none;
+}
+.sug-hero > * { position: relative; z-index: 1; }
+.hero-idx { font-size: 10.5px; color: var(--faint); letter-spacing: .04em; margin-bottom: var(--s2); }
+.hero-text { font-size: 17.5px; line-height: 1.45; font-weight: 500; margin-bottom: var(--s3); }
+.hero-meta { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.hero-acts { display: flex; gap: var(--s2); margin-top: var(--s4); }
+.hero-acts .btn { flex: 1; min-width: 0; }
+
+/* ---------- 紧凑卡 ---------- */
 .sug-list { display: flex; flex-direction: column; gap: 6px; }
 .sug-item {
-  display: flex; align-items: center; gap: var(--s3);
-  padding: var(--s3) var(--s3) var(--s3) var(--s2);
+  display: flex; align-items: flex-start; gap: var(--s2);
+  padding: 10px 11px 10px 13px; position: relative;
   background: var(--card); border: 1px solid var(--border);
   border-radius: var(--r-md);
-  transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
-.sug-item:hover { border-color: var(--border-2); background: var(--card-2); }
+.sug-item:hover { border-color: var(--border-2); box-shadow: var(--sh-1); }
+/* 左侧色条：标出这条是不是「不看屏幕」 */
+.sug-item::before {
+  content: ''; position: absolute; left: 0; top: 10px; bottom: 10px;
+  width: 3px; border-radius: 0 3px 3px 0; background: var(--border-2);
+}
+.sug-item.nos::before { background: #d4a08c; }
 .sug-item.added { opacity: .5; }
+.sug-item.added::before { background: var(--ok); }
 
-.sug-no {
-  flex-shrink: 0; width: 26px; text-align: right;
-  font-size: 12px; color: var(--faint);
-  font-variant-numeric: tabular-nums; user-select: none;
+.sug-text { flex: 1; min-width: 0; font-size: 14px; line-height: 1.45; }
+
+/* 属性：小圆点 + 文字。比一排灰方块轻得多 */
+.sug-attrs {
+  display: flex; align-items: center; gap: var(--s3);
+  flex-wrap: wrap; margin-top: 4px;
+  font-size: 11px; color: var(--muted);
 }
-.sug-text { flex: 1; min-width: 0; font-size: 14.5px; line-height: 1.5; }
-.sug-tags {
-  display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px;
-}
+.sug-attrs .sa { display: inline-flex; align-items: center; gap: 4px; }
+.sug-attrs .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.sug-attrs .dot.place { background: #a8b5a0; }
+.sug-attrs .dot.device { background: #9aa8c4; }
+.sug-attrs .dot.screen { background: #d4a08c; }
+
+.sug-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
 .sug-tags .st {
-  font-size: 11px; color: var(--muted); background: var(--bg-sunk);
-  padding: 1px 7px; border-radius: 5px;
-}
-.sug-tags .st.attr {
-  background: transparent; border: 1px solid var(--border-2);
-  padding: 0 6px;
+  font-size: 10.5px; color: var(--muted); background: var(--bg-sunk);
+  padding: 1px 6px; border-radius: 4px;
 }
 .sug-tags .st.daily {
   color: var(--accent-deep); background: var(--accent-soft); font-weight: 500;
@@ -366,19 +423,18 @@ h1 { font-size: 23px; font-weight: 650; letter-spacing: .01em; line-height: 1.3;
 
 .sug-add {
   flex-shrink: 0;
-  width: 34px; height: 34px; border-radius: 50%;
+  width: 28px; height: 28px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: var(--accent-soft); color: var(--accent-deep);
-  font-size: 19px; line-height: 1;
+  font-size: 16px; line-height: 1;
   transition: all var(--t-fast) var(--ease);
 }
-.sug-add:hover { background: var(--accent); color: #fff; transform: scale(1.06); }
+.sug-add:hover { background: var(--accent); color: #fff; transform: scale(1.12); }
 .sug-add:active { transform: scale(.94); }
 .sug-add:disabled {
-  background: var(--bg-sunk); color: var(--faint);
-  cursor: default; transform: none;
+  background: var(--ok); color: #fff;
+  cursor: default; transform: none; font-size: 13px;
 }
-.sug-add.done-yes { font-size: 15px; }
 
 .sug-foot { margin-top: var(--s5); font-size: 12px; color: var(--faint); text-align: center; }
 
@@ -668,6 +724,54 @@ footer .flink svg { width: 15px; height: 15px; }
 /* ============================================================================
    10. Responsive
    ============================================================================ */
+
+/* ---- 宽屏（≥861px）：左右分栏 ----
+   必须放在所有基础样式之后。CSS 按出现顺序生效，
+   媒体查询写早了会被后面的基础样式覆盖掉。 */
+@media (min-width: 861px) {
+  .app { max-width: 1080px; }             /* 两栏并排，整体要放宽，否则每栏太窄 */
+
+  .view-tabs { display: none; }           /* 分栏时不需要切页 */
+  .sug-hero { display: none !important; } /* 大卡在窄栏里太占地方 */
+  .pane.hide { display: block; }          /* 宽屏一律都显示，忽略 .hide */
+
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    gap: var(--s5);
+  }
+  .pane {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: var(--s4);
+  }
+  /* 两栏并排时各自得有个标题才知道这是哪栏。
+     用伪元素生成，省得在 HTML 里放两份只在宽屏出现的节点 */
+  #viewShelf::before,
+  #viewSuggest::before {
+    content: '';
+    display: block;
+    font-size: 14px; font-weight: 600;
+    margin-bottom: var(--s3);
+    padding-bottom: var(--s2);
+    border-bottom: 1px solid var(--border);
+  }
+  #viewShelf::before { content: '我的货架'; }
+  #viewSuggest::before { content: '推荐清单'; }
+
+  /* 右栏已经很明确了，一大段说明文字纯属占地方 */
+  .sug-intro { display: none; }
+  .sug-toolbar { display: flex; }
+
+  /* 左栏宽度有限，快速添加压紧一点 */
+  .composer { padding: var(--s3); }
+  .composer textarea { min-height: 40px; }
+  .hint { display: none; }                /* 快捷键提示在分栏下是噪音 */
+  .quick-tags { margin-top: var(--s2); padding-top: var(--s2); }
+}
+
 @media (max-width: 560px) {
   body { font-size: 14.5px; }
   .app { padding-left: var(--s4); padding-right: var(--s4); }

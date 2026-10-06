@@ -27,3 +27,6 @@ build/
 # node_modules（跑测试时 npm install playwright-core 产生）
 node_modules/
 package-lock.json
+
+# 临时预览页（方案对比用，不属于交付物）
+/.preview/
