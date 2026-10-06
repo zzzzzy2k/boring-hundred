@@ -157,7 +157,10 @@ manifest 里还配了一个**长按图标的快捷方式「随机一件」**，�
 ├── sw.js← PWA 离线缓存
 ├── icon-*.png / apple-touch-icon.png / favicon-32.png
 ├── tools/
-│   └── make-icons.py   ← 图标生成脚本（纯标准库，改配色后重跑即可）
+│   ├── make-icons.py   ← 图标生成脚本（纯标准库，改配色后重跑即可）
+│   ├── push.py         ← 推送 + 认证引导
+│   └── fix-bat.py      ← 把 .bat 规范成纯 ASCII + CRLF
+├── 推送.bat             ← 双击这个推送（纯 ASCII，逻辑在 push.py 里）
 ├── README.md
 ├── .gitignore
 ├── _原始版本-test.html← 最初的手写原型，仅作对照，可删
@@ -213,14 +216,40 @@ List / Modal / Toast / Footer / Responsive / A11y），JS 按 15 个功能分区
 
 ## 部署到 GitHub Pages
 
+**推送**：双击 `推送.bat`。首次运行会引导你完成 GitHub 认证（要一个 Personal Access Token，
+获取步骤脚本里会一步步提示），之后凭据会保存下来，以后直接双击就行。
+
+或手动：
+
 ```bash
-git remote add origin https://github.com/zzzzzy2k/boring-hundred.git
 git push -u origin main
 ```
 
-然后在 GitHub 仓库 **Settings → Pages → Source 选 `main` 分支 / root**。
+**开启 Pages**：仓库 → Settings → Pages → Source 选 `main` 分支 / `(root)` → Save。
+等 1~2 分钟后访问 <https://zzzzzy2k.github.io/boring-hundred/>。
 
-访问 <https://zzzzzy2k.github.io/boring-hundred/>。
+> 装好 Pages 后 PWA 才能真正发挥作用——本地双击 `file://` 打开时浏览器不允许
+> 注册 Service Worker，缓存功能会自动跳过。
+
+### 如果推送失败
+
+**`Failed to connect to github.com:443 over proxy 127.0.0.1`**
+
+全局 git 配置里有一条指向 `127.0.0.1:7890` 的代理（Clash 的默认端口），
+但代理软件没在运行。清掉它即可（这条配置已经帮你在本机删掉了）：
+
+```bash
+git config --global --unset-all "http.https://github.com.proxy"
+```
+
+**`could not read Username` / `Authentication failed`**
+
+Token 没生成、没勾 `repo` 权限、或已过期。重新生成一个：
+<https://github.com/settings/tokens> → Generate new token (classic) → 勾 `repo`。
+
+**`Updates were rejected`**
+
+远端有你本地没有的提交。先 `git pull origin main --rebase` 再 push。
 
 ---
 
